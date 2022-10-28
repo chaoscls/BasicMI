@@ -139,6 +139,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.2
+    roi_size: [160, 160, 96]
 
   metrics:
     dice: # metric name
