@@ -18,8 +18,8 @@ datasets:
     space_x: 1.5
     space_y: 1.5
     space_z: 2.0
-    roi_x: 160
-    roi_y: 160
+    roi_x: 192
+    roi_y: 192
     roi_z: 96
     RandFlipd_prob: 0.2
     RandRotate90d_prob: 0.2
@@ -118,7 +118,7 @@ train:
   # losses
   # dice loss
   dice_opt:
-    type: DiceCELoss
+    type: DiceLoss
     include_background: true
     to_onehot_y: true
     softmax: true
@@ -134,7 +134,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.2
-    roi_size: [160, 160, 96]
+    roi_size: [192, 192, 96]
 
   metrics:
     dice: # metric name

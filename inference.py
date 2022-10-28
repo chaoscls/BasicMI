@@ -1,3 +1,9 @@
+import torch
+import os.path as osp
+import os
+import glob
+import argparse
+
 from monai.transforms import (
     AsDiscreted,
     EnsureChannelFirstd,
@@ -14,13 +20,17 @@ from monai.networks.nets import UNet
 from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, Dataset, decollate_batch
 from monai.metrics import DiceMetric
-import torch
-import os.path as osp
-import os
-import glob
+from monai.handlers.utils import from_engine
 
-data_dir = 'experiments/dataset/18artery/train'
-state_path = 'experiments/unet_baseline_pulmonary_seg/models/net_latest.pth'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_dir', default='experiments/dataset/18artery/train', type=str)
+parser.add_argument('--load_path', default='experiments/unet_baseline_pulmonary_seg/models/net_best.pth', type=str)
+args = parser.parse_args()
+
+data_dir = args.data_dir
+load_path = args.load_path
 images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
 labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
 files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(images, labels)]
@@ -56,8 +66,10 @@ post_transforms = Compose([
         nearest_interp=False,
         to_tensor=True,
     ),
-    # AsDiscreted(keys="pred", argmax=True),
-    # SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir="./out/train", output_postfix="seg", resample=False),
+    AsDiscreted(keys="pred", argmax=True),
+    SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir="./out/train", output_postfix="seg", resample=False),
+    AsDiscreted(keys="pred", to_onehot=19),
+    AsDiscreted(keys="label", to_onehot=19),
 ])
 
 acc_fun = DiceMetric(
@@ -78,20 +90,24 @@ model = UNet(
     norm="INSTANCE",
 ).to(device)
 
-model.load_state_dict(torch.load(state_path)['params'])
+model.load_state_dict(torch.load(load_path)['params'])
 model.eval()
 
 with torch.no_grad():
-    for test_data in loader:
-        test_inputs = test_data["image"].to(device)
+    for val_data in loader:
+        test_inputs = val_data["image"].to(device)
         roi_size = (160, 160, 96)
         sw_batch_size = 4
-        test_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model)
-        test_data = [post_transforms(i) for i in decollate_batch(test_data)][0]
-        dice_acc = acc_fun(test_data["pred"], test_data["label"])
-        print(f"{osp.basename(test_data.meta['filename_or_obj']).split('.')[0]} acc: {dice_acc}")
+        val_data["pred"] = sliding_window_inference(
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5)
+        val_data = [post_transforms(i) for i in decollate_batch(val_data)]
+        val_outputs, val_labels = from_engine(["pred", "label"])(val_data)
+        acc_fun.reset()
+        acc_fun(val_outputs, val_labels)
+        acc = acc_fun.aggregate().item()
+        val_data = val_data[0]
+        print(f"{osp.basename(val_data['image'].meta['filename_or_obj']).split('.')[0]}, origin shape: {val_data['label'].shape[1:]}, transform shape: {val_data['image'].shape[1:]}, acc: {acc}")
 
-        del test_data
+        del val_data
         torch.cuda.empty_cache()
 

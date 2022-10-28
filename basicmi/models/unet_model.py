@@ -114,11 +114,9 @@ class UNetModel(BaseModel):
             self.output = self.net(self.data)
 
             # dice loss
-            dice_ce_loss, dice_loss, ce_loss = self.cri_dice(self.output, self.target)
-        loss_total += dice_ce_loss
-        loss_dict['l_dice_ce'] = dice_ce_loss
+            dice_loss= self.cri_dice(self.output, self.target)
+        loss_total += dice_loss
         loss_dict['l_dice'] = dice_loss
-        loss_dict['l_ce'] = ce_loss
         
         self.optimizer.zero_grad()
         if self.opt['amp']:
