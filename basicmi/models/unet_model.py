@@ -140,7 +140,7 @@ class UNetModel(BaseModel):
             with autocast(self.opt['amp']):
                 self.output = sliding_window_inference(
                     inputs=self.data,
-                    roi_size=[data_opt['roi_x'], data_opt['roi_y'], data_opt['roi_z']],
+                    roi_size=model_inferer_opt['roi_size'],
                     sw_batch_size=model_inferer_opt['sw_batch_size'],
                     predictor=self.net,
                     overlap=model_inferer_opt['infer_overlap'],
@@ -202,7 +202,7 @@ class UNetModel(BaseModel):
             pbar.close()
 
         if with_metrics:
-            if current_iter > 10000 and self.best_acc < self.metric_results['dice']:
+            if current_iter > 10000 and dataset_name == "val" and self.best_acc < self.metric_results['dice']:
                 logger = get_root_logger()
                 logger.info('Save the best model.')
                 self.save_network(self.net, 'net', -2) # save best
@@ -228,6 +228,25 @@ class UNetModel(BaseModel):
         if tb_logger:
             for metric, value in self.metric_results.items():
                 tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
+
+    def resume_training(self, resume_state):
+        """Reload the optimizers, schedulers and models for resumed training.
+
+        Args:
+            resume_state (dict): Resume state.
+        """
+        resume_optimizers = resume_state['optimizers']
+        resume_schedulers = resume_state['schedulers']
+        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
+        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
+        for i, o in enumerate(resume_optimizers):
+            self.optimizers[i].load_state_dict(o)
+        for i, s in enumerate(resume_schedulers):
+            self.schedulers[i].load_state_dict(s)
+
+        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
+        param_key = self.opt['path'].get('param_key', 'params')
+        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
 
     def save(self, epoch, current_iter):
         # save net and net_d

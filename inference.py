@@ -13,20 +13,23 @@ from monai.transforms import (
 from monai.networks.nets import UNet
 from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, Dataset, decollate_batch
+from monai.metrics import DiceMetric
 import torch
+import os.path as osp
 import os
 import glob
 
 data_dir = 'experiments/dataset/18artery/train'
 state_path = 'experiments/unet_baseline_pulmonary_seg/models/net_latest.pth'
 images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
-files = [{"image": image_name} for image_name in images]
-print(files)
+labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
+files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(images, labels)]
+# print(files)
 
 transforms = Compose(
     [
-        LoadImaged(keys=["image"]),
-        EnsureChannelFirstd(keys=["image"]),
+        LoadImaged(keys=["image", "label"]),
+        EnsureChannelFirstd(keys=["image", "label"]),
         Orientationd(keys=["image"], axcodes="RAS"),
         Spacingd(
             keys=["image"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear")
@@ -53,9 +56,15 @@ post_transforms = Compose([
         nearest_interp=False,
         to_tensor=True,
     ),
-    AsDiscreted(keys="pred", argmax=True),
-    SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir="./out/train", output_postfix="seg", resample=False),
+    # AsDiscreted(keys="pred", argmax=True),
+    # SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir="./out/train", output_postfix="seg", resample=False),
 ])
+
+acc_fun = DiceMetric(
+    include_background=True,
+    reduction='mean',
+    get_not_nans=False
+)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = UNet(
@@ -79,7 +88,9 @@ with torch.no_grad():
         sw_batch_size = 4
         test_data["pred"] = sliding_window_inference(
             test_inputs, roi_size, sw_batch_size, model)
-        test_data = [post_transforms(i) for i in decollate_batch(test_data)]
+        test_data = [post_transforms(i) for i in decollate_batch(test_data)][0]
+        dice_acc = acc_fun(test_data["pred"], test_data["label"])
+        print(f"{osp.basename(test_data.meta['filename_or_obj']).split('.')[0]} acc: {dice_acc}")
 
         del test_data
         torch.cuda.empty_cache()

@@ -1,0 +1,11 @@
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=1 python basicmi/main.py \
+--data_dir dataset/debug \
+--roi_x=96 --roi_y=96 --roi_z=96 \
+--batch_size=3 --sub_batch_size=3 \
+--max_epochs=10 \
+--repeat_num 1 \
+--val_every 1 \
+--val_num 2 \
+--workers 2 \
+--pin_memory \
+--save_checkpoint \
