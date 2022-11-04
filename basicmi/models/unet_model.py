@@ -1,16 +1,10 @@
 import os
 import os.path as osp
-from functools import partial
 from collections import OrderedDict
 
 import torch
-import numpy as np
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
-from monai.inferers import sliding_window_inference
-from monai.data import decollate_batch
-from monai.handlers.utils import from_engine
-import nibabel as nib
 
 from basicmi.archs import build_network
 from basicmi.losses import build_loss
@@ -18,6 +12,7 @@ from basicmi.metrics import build_metric
 from basicmi.models.base_model import BaseModel
 from basicmi.utils import get_root_logger
 from basicmi.utils.registry import MODEL_REGISTRY
+from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
@@ -89,7 +84,12 @@ class UNetModel(BaseModel):
         if isinstance(batch_data, list):
             self.data, self.target = batch_data
         else:
-            self.data, self.target = batch_data["image"], batch_data["label"]
+            if "center_image" in batch_data:
+                self.data, self.target, center_image = batch_data["image"], batch_data["label"], batch_data["center_image"]
+                self.data = torch.cat([self.data, center_image], dim=1)
+            else:
+                self.data, self.target= batch_data["image"], batch_data["label"]
+
         self.data = self.data.to(self.device)
         self.target = self.target.to(self.device)
 
@@ -109,6 +109,7 @@ class UNetModel(BaseModel):
     def optimize_parameters(self, current_iter):
         loss_total = 0
         loss_dict = OrderedDict()
+        print("=>", self.data.shape)
         with autocast(enabled=self.opt['amp']):
             # optimize net
             self.output = self.net(self.data)
@@ -131,9 +132,7 @@ class UNetModel(BaseModel):
 
     def test(self):
         self.net.eval()
-        val_opt = self.opt['val']
-        data_opt = self.opt['datasets']['train']
-        model_inferer_opt = val_opt['model_inferer']
+        model_inferer_opt = self.opt['val']['model_inferer']
         with torch.no_grad():
             with autocast(self.opt['amp']):
                 self.output = sliding_window_inference(
@@ -142,6 +141,7 @@ class UNetModel(BaseModel):
                     sw_batch_size=model_inferer_opt['sw_batch_size'],
                     predictor=self.net,
                     overlap=model_inferer_opt['infer_overlap'],
+                    center_crop=True,
                 )
         self.net.train()
 
@@ -225,7 +225,7 @@ class UNetModel(BaseModel):
         logger.info(log_str)
         if tb_logger:
             for metric, value in self.metric_results.items():
-                tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
+                tb_logger.add_scalar(f'metrics/{dataset_name}_{metric}', value, current_iter)
 
     def resume_training(self, resume_state):
         """Reload the optimizers, schedulers and models for resumed training.

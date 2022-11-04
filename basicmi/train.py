@@ -6,6 +6,7 @@ from os import path as osp
 
 import torch
 from monai import data
+from monai.data import set_track_meta
 
 from basicmi.data import build_dataset
 from basicmi.data.data_sampler import EnlargedSampler
@@ -32,16 +33,17 @@ def create_train_val_dataloader(opt, logger):
         if phase == 'train':
             enlarge_ratio = dataset_opt.get('enlarge_ratio', 1)
             train_set = build_dataset(dataset_opt)
-            # train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], enlarge_ratio)
-            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], 1)
-            train_loader = data.DataLoader(
-                train_set,
-                batch_size=dataset_opt["batch_size_per_gpu"],
-                shuffle=(train_sampler is None),
-                num_workers=dataset_opt["workers"],
-                sampler=train_sampler,
-                pin_memory=dataset_opt["pin_memory"],
-            )
+            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], enlarge_ratio)
+            # train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], 1)
+            train_loader = data.ThreadDataLoader(train_set, num_workers=0, batch_size=opt['world_size'], shuffle=(train_sampler is None))
+            # train_loader = data.DataLoader(
+            #     train_set,
+            #     batch_size=dataset_opt["batch_size_per_gpu"],
+            #     shuffle=(train_sampler is None),
+            #     num_workers=dataset_opt["workers"],
+            #     sampler=train_sampler,
+            #     pin_memory=dataset_opt["pin_memory"],
+            # )
 
             num_iter_per_epoch = math.ceil(
                 len(train_set) * dataset_opt["enlarge_ratio"] / (dataset_opt['batch_size_per_gpu'] * opt['world_size']))
@@ -56,6 +58,7 @@ def create_train_val_dataloader(opt, logger):
                         f'\n\tTotal epochs: {total_epochs}; iters: {total_iters}.')
         elif phase.split('_')[0] == 'val':
             val_set = build_dataset(dataset_opt)
+            # val_loader = data.ThreadDataLoader(val_set, num_workers=0, batch_size=1, shuffle=False)
             val_loader = data.DataLoader(
                 val_set, 
                 batch_size=1, 
@@ -122,6 +125,8 @@ def train_pipeline(root_path):
     logger.info(dict2str(opt))
     # initialize wandb and tb loggers
     tb_logger = init_tb_loggers(opt)
+
+    set_track_meta(True)
 
     # create train and validation dataloaders
     result = create_train_val_dataloader(opt, logger)

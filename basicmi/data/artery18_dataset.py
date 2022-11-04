@@ -2,10 +2,51 @@ import os
 import glob
 
 import torch
+import numpy as np
 from monai import data, transforms
 
 from basicmi.utils.registry import DATASET_REGISTRY
 
+class RandCropWithCenterCrop(transforms.Randomizable, transforms.MapTransform):
+    def __init__(
+        self,
+        keys,
+        label_key,
+        spatial_size,
+        pos,
+        neg,
+        num_samples,
+        image_key,
+        image_threshold,
+        allow_smaller,
+        ) -> None:
+        super(transforms.Randomizable, self).__init__(keys)
+        self.randcrop = transforms.RandCropByPosNegLabeld(keys=keys, label_key=label_key, spatial_size=spatial_size, pos=pos, neg=neg, num_samples=num_samples, image_key=image_key, image_threshold=image_threshold, allow_smaller=allow_smaller)
+        self.centercrop = transforms.CenterSpatialCropd(keys=keys, roi_size=spatial_size)
+        
+    def __call__(self, data):
+        randcrop = self.randcrop(data)
+        center = self.centercrop(data)
+        for i in range(len(randcrop)):
+            randcrop[i]['center_image'] = center['image']
+            # randcrop[i]['center_label'] = center['label']
+        return randcrop
+
+class AddCenterCrop(transforms.MapTransform):
+    def __init__(
+        self,
+        keys,
+        spatial_size,
+        ) -> None:
+        super(transforms.Randomizable, self).__init__(keys)
+        self.centercrop = transforms.CenterSpatialCropd(keys=keys, roi_size=spatial_size)
+        
+    def __call__(self, data):
+        center = self.centercrop(data)
+        data["center_image"] = center
+        return data
+        
+        
 @DATASET_REGISTRY.register()
 class Artery18TrainDataset(torch.utils.data.Dataset):
 
@@ -29,7 +70,30 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
                 transforms.CropForegroundd(keys=["image", "label"], source_key="image"),
-                transforms.RandCropByPosNegLabeld(
+                # transforms.ToDeviced(keys=["image", "label"], device='cuda'),
+                transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta= False),
+                transforms.RandRotated(
+                    keys=["image", "label"],
+                    range_x=opt['rotate_range'],
+                    range_y=opt['rotate_range'],
+                    range_z=opt['rotate_range'],
+                    prob=opt["rotate_prob"],
+                    mode=["bilinear", "nearest"], 
+                    padding_mode="zeros",
+                ),
+                # transforms.Rand3DElasticd(
+                #     keys=["image", "label"],
+                #     sigma_range=(0.,0.),
+                #     magnitude_range=(0.,0.),
+                #     prob=opt["elastic_prob"],
+                #     rotate_range=opt["rotate_range"],
+                #     shear_range=opt["shear_range"],
+                #     scale_range=0.1,
+                #     mode=["bilinear", "nearest"],
+                #     padding_mode="zeros",
+                #     # device="cuda",
+                # ),
+                RandCropWithCenterCrop(
                     keys=["image", "label"],
                     label_key="label",
                     spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"]),
@@ -38,15 +102,26 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                     num_samples=2,
                     image_key="image",
                     image_threshold=0,
-                    allow_smaller=True,
+                    allow_smaller=True, 
                 ),
-                transforms.ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"])),
-                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=0),
-                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=1),
-                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=2),
-                transforms.RandRotate90d(keys=["image", "label"], prob=opt["RandRotate90d_prob"], max_k=3),
-                transforms.RandScaleIntensityd(keys="image", factors=0.1, prob=opt["RandScaleIntensityd_prob"]),
-                transforms.RandShiftIntensityd(keys="image", offsets=0.1, prob=opt["RandShiftIntensityd_prob"]),
+                # transforms.RandCropByPosNegLabeld(
+                #     keys=["image", "label"],
+                #     label_key="label",
+                #     spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"]),
+                #     pos=1,
+                #     neg=1,
+                #     num_samples=2,
+                #     image_key="image",
+                #     image_threshold=0,
+                #     allow_smaller=True,
+                # ),
+                transforms.ResizeWithPadOrCropd(keys=["image", "label", "center_image"], spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"])),
+                # transforms.RandFlipd(keys=["image", "label", "center_image"], prob=opt["RandFlipd_prob"], spatial_axis=0),
+                # transforms.RandFlipd(keys=["image", "label", "center_image"], prob=opt["RandFlipd_prob"], spatial_axis=1),
+                # transforms.RandFlipd(keys=["image", "label", "center_image"], prob=opt["RandFlipd_prob"], spatial_axis=2),
+                # transforms.RandRotate90d(keys=["image", "label", "center_image"], prob=opt["RandRotate90d_prob"], max_k=3),
+                # transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.1, prob=opt["RandScaleIntensityd_prob"]),
+                # transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.1, prob=opt["RandShiftIntensityd_prob"]),
                 transforms.ToTensord(keys=["image", "label"]),
             ]
         )
@@ -93,6 +168,7 @@ class Artery18ValidationDataset(torch.utils.data.Dataset):
                 ),
                 transforms.CropForegroundd(keys=["image", "label"], source_key="image"),
                 # transforms.ToTensord(keys=["image", "label"]),
+                # transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta= False),
             ]
         )
 
