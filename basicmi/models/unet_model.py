@@ -109,7 +109,6 @@ class UNetModel(BaseModel):
     def optimize_parameters(self, current_iter):
         loss_total = 0
         loss_dict = OrderedDict()
-        print("=>", self.data.shape)
         with autocast(enabled=self.opt['amp']):
             # optimize net
             self.output = self.net(self.data)
