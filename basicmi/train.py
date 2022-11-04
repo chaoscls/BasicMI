@@ -35,7 +35,7 @@ def create_train_val_dataloader(opt, logger):
             train_set = build_dataset(dataset_opt)
             train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], enlarge_ratio)
             # train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], 1)
-            train_loader = data.ThreadDataLoader(train_set, num_workers=0, batch_size=opt['world_size'], shuffle=(train_sampler is None))
+            train_loader = data.ThreadDataLoader(train_set, num_workers=0, batch_size=dataset_opt["batch_size_per_gpu"], shuffle=(train_sampler is None))
             # train_loader = data.DataLoader(
             #     train_set,
             #     batch_size=dataset_opt["batch_size_per_gpu"],
