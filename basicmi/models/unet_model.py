@@ -224,7 +224,7 @@ class UNetModel(BaseModel):
         logger.info(log_str)
         if tb_logger:
             for metric, value in self.metric_results.items():
-                tb_logger.add_scalar(f'metrics/{dataset_name}_{metric}', value, current_iter)
+                tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
 
     def resume_training(self, resume_state):
         """Reload the optimizers, schedulers and models for resumed training.
