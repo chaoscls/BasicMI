@@ -55,12 +55,14 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
         super(Artery18SSLTrainDataset, self).__init__()
         self.opt = opt
         data_dir = self.opt["dataroot"]
+        u_data_dir = self.opt["udataroot"]
+
         self.images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
         labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
         l_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(self.images, labels)]
         
-        u_images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
-        u_labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
+        u_images = sorted(glob.glob(os.path.join(u_data_dir, "images", "*.nii.gz")))
+        u_labels = sorted(glob.glob(os.path.join(u_data_dir, "labels", "*.nii.gz")))
         u_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(u_images, u_labels)]
 
         self.files = l_files * math.ceil(len(u_files) / len(l_files)) + u_files

@@ -10,7 +10,7 @@ datasets:
     name: train
     type: Artery18TrainDataset
     dataroot: experiments/dataset/18artery/train
-    ul_root: experiments/dataset/LUNA16
+    udataroot: experiments/dataset/LUNA16/st
     # transforms
     a_min: -1200.0
     a_max: 400.0
