@@ -127,7 +127,7 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
                 transforms.RandRotate90d(keys=keys_tmp, prob=opt["RandRotate90d_prob"], max_k=3),
                 # transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.1, prob=opt["RandScaleIntensityd_prob"]),
                 # transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.1, prob=opt["RandShiftIntensityd_prob"]),
-                transforms.ToTensord(keys=["image", "label"]),
+                transforms.ToTensord(keys=keys_tmp),
             ]
         )
 
