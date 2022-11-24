@@ -1,5 +1,6 @@
 import os
 import glob
+import math
 
 import torch
 import numpy as np
@@ -54,9 +55,15 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
         super(Artery18SSLTrainDataset, self).__init__()
         self.opt = opt
         data_dir = self.opt["dataroot"]
-        images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
+        self.images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
         labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
-        files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(images, labels)]
+        l_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(self.images, labels)]
+        
+        u_images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
+        u_labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
+        u_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(u_images, u_labels)]
+
+        self.files = l_files * math.ceil(len(u_files) / len(l_files)) + u_files
 
         keys_tmp = ["image", "label", "center_image"] if opt["center_crop"] else ["image", "label"]
 
@@ -114,6 +121,11 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=2),
                 transforms.RandRotate90d(keys=keys_tmp, prob=opt["RandRotate90d_prob"], max_k=3),
 
+            ]
+        )
+
+        self.u_transform = transforms.Compose(
+            [
                 transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.2, prob=opt["RandScaleIntensityd_prob"]),
                 transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.2, prob=opt["RandShiftIntensityd_prob"]),
                 transforms.Rand3DElasticd(
@@ -121,29 +133,28 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
                     sigma_range=(0.,0.),
                     magnitude_range=(0.,0.),
                     prob=opt["elastic_prob"],
-                    rotate_range=opt["rotate_range"],
                     shear_range=opt["shear_range"],
                     scale_range=0.1,
                     mode=["bilinear", "nearest"],
                     padding_mode="zeros",
-                    # device="cuda",
-                ),
-
-                transforms.ToTensord(keys=keys_tmp),
+                )
             ]
         )
 
         if opt["dataset_type"] == 'normal':
-            self.dataset = data.Dataset(data=files, transform=transform)
+            self.dataset = data.Dataset(data=self.files, transform=transform)
         elif opt["dataset_type"] == 'cache':
             self.dataset = data.CacheDataset(
-                data=files, transform=transform, cache_num=max(16, len(files)), cache_rate=1.0, num_workers=opt["workers"]
+                data=self.files, transform=transform, cache_num=max(16, len(self.files)), cache_rate=1.0, num_workers=opt["workers"]
             )
         elif opt["dataset_type"] == 'persist':
-            self.dataset = data.PersistentDataset(data=files, transform=transform, cache_dir='experiments/dataset/.train_cache')
+            self.dataset = data.PersistentDataset(data=self.files, transform=transform, cache_dir='experiments/dataset/.train_cache')
 
     def __getitem__(self, index):
-        return self.dataset[index]
+        if self.files[index]["image"] in self.images:
+            return self.dataset[index]
+        else:
+            return self.u_transform(self.dataset[index])
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.files)

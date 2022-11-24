@@ -17,10 +17,11 @@ from monai.transforms import (
     Invertd,
 )
 from monai.networks.nets import UNet
-from monai.inferers import sliding_window_inference
 from monai.data import DataLoader, Dataset, decollate_batch
 from monai.metrics import DiceMetric
 from monai.handlers.utils import from_engine
+
+from basicmi.inferers.utils import sliding_window_inference
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
@@ -81,7 +82,7 @@ acc_fun = DiceMetric(
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = UNet(
     spatial_dims=3,
-    in_channels=1,
+    in_channels=2,
     out_channels=19,
     channels=[32, 64, 128, 256, 512],
     strides=[2, 2, 2, 2],
@@ -99,7 +100,7 @@ with torch.no_grad():
         roi_size = (160, 160, 96)
         sw_batch_size = 4
         val_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model, overlap=0.5)
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=True)
         val_data = [post_transforms(i) for i in decollate_batch(val_data)]
         val_outputs, val_labels = from_engine(["pred", "label"])(val_data)
         acc_fun.reset()
