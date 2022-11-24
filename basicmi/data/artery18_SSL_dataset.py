@@ -83,18 +83,6 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
                     mode=["bilinear", "nearest"], 
                     padding_mode="zeros",
                 ),
-                # transforms.Rand3DElasticd(
-                #     keys=["image", "label"],
-                #     sigma_range=(0.,0.),
-                #     magnitude_range=(0.,0.),
-                #     prob=opt["elastic_prob"],
-                #     rotate_range=opt["rotate_range"],
-                #     shear_range=opt["shear_range"],
-                #     scale_range=0.1,
-                #     mode=["bilinear", "nearest"],
-                #     padding_mode="zeros",
-                #     # device="cuda",
-                # ),
 
                 RandCropWithCenterCrop(
                     keys=["image", "label"],
@@ -125,8 +113,22 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=1),
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=2),
                 transforms.RandRotate90d(keys=keys_tmp, prob=opt["RandRotate90d_prob"], max_k=3),
-                # transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.1, prob=opt["RandScaleIntensityd_prob"]),
-                # transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.1, prob=opt["RandShiftIntensityd_prob"]),
+
+                transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.2, prob=opt["RandScaleIntensityd_prob"]),
+                transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.2, prob=opt["RandShiftIntensityd_prob"]),
+                transforms.Rand3DElasticd(
+                    keys=["image", "label"],
+                    sigma_range=(0.,0.),
+                    magnitude_range=(0.,0.),
+                    prob=opt["elastic_prob"],
+                    rotate_range=opt["rotate_range"],
+                    shear_range=opt["shear_range"],
+                    scale_range=0.1,
+                    mode=["bilinear", "nearest"],
+                    padding_mode="zeros",
+                    # device="cuda",
+                ),
+
                 transforms.ToTensord(keys=keys_tmp),
             ]
         )
