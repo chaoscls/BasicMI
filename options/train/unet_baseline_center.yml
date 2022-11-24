@@ -18,8 +18,8 @@ datasets:
     space_x: 1.5
     space_y: 1.5
     space_z: 2.0
-    roi_x: 192
-    roi_y: 192
+    roi_x: 160
+    roi_y: 160
     roi_z: 96
     RandFlipd_prob: 0.2
     RandRotate90d_prob: 0.2
@@ -29,6 +29,7 @@ datasets:
     rotate_prob: 0.3
     rotate_range: 0.785
     # other
+    center_crop: true
     enlarge_ratio: 1
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
@@ -72,7 +73,7 @@ datasets:
     space_y: 1.5
     space_z: 2.0
     # other
-    valid_num: 10
+    valid_num: ~
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -114,11 +115,11 @@ train:
     # gamma: 0.5
 
     type: CosineAnnealingRestartLR 
-    periods: [20000, 20000, 20000]
-    restart_weights: [1.0, 0.5, 0.5]
+    periods: [40000]
+    restart_weights: [1.0]
     eta_min: !!float 1e-8
 
-  total_iter: 60000
+  total_iter: 40000
   warmup_iter: 1000
 
   # losses
@@ -139,7 +140,7 @@ val:
 
   model_inferer:
     sw_batch_size: 4
-    infer_overlap: 0.2
+    infer_overlap: 0.4
     roi_size: [192, 192, 96]
 
   metrics:

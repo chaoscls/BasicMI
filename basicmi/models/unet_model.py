@@ -22,6 +22,7 @@ class UNetModel(BaseModel):
     def __init__(self, opt):
         super(UNetModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
+        self.center_crop = opt["datasets"]["train"]["center_crop"]
 
         # define network
         self.net = build_network(opt['network'])
@@ -140,7 +141,7 @@ class UNetModel(BaseModel):
                     sw_batch_size=model_inferer_opt['sw_batch_size'],
                     predictor=self.net,
                     overlap=model_inferer_opt['infer_overlap'],
-                    center_crop=True,
+                    center_crop=self.center_crop,
                 )
         self.net.train()
 
