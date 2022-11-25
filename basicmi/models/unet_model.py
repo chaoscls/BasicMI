@@ -210,7 +210,7 @@ class UNetModel(BaseModel):
             pbar.close()
 
         if with_metrics:
-            if current_iter > 10000 and dataset_name == "val" and self.best_acc < self.metric_results['dice']:
+            if current_iter > 10000 and dataset_name == "val" and self.best_acc > self.metric_results['dice']:
                 logger = get_root_logger()
                 logger.info('Save the best model.')
                 self.save_network(self.net, 'net', -2) # save best
