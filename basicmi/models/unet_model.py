@@ -111,20 +111,20 @@ class UNetModel(BaseModel):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
-            # optimize net
-            self.output = self.net(self.data)
+            # # optimize net
+            # self.output = self.net(self.data)
 
-            # dice loss
-            dice_loss= self.cri_dice(self.output, self.target)
+            # # dice loss
+            # dice_loss= self.cri_dice(self.output, self.target)
 
-            # dice_loss = None
-            # for i in range(0,8,4):
-            #     self.output = self.net(self.data[i:i+4])
+            dice_loss = None
+            for i in range(0,8,4):
+                self.output = self.net(self.data[i:i+4])
 
-            #     # dice loss
-            #     dice_loss = self.cri_dice(self.output, self.target[i:i+4]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+4])
+                # dice loss
+                dice_loss = self.cri_dice(self.output, self.target[i:i+4]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+4])
             
-            # dice_loss /= 2
+            dice_loss /= 2
 
         loss_total += dice_loss
         loss_dict['l_dice'] = dice_loss

@@ -75,7 +75,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # device = 'cpu'
 model = UNet(
     spatial_dims=3,
-    in_channels=2,
+    in_channels=1,
     out_channels=19,
     channels=[32, 64, 128, 256, 512],
     strides=[2, 2, 2, 2],
@@ -102,10 +102,10 @@ with torch.no_grad():
         # if os.path.basename(val_data['image'].meta['filename_or_obj'][0]).split('.')[0] in exist_name:
         #     continue
         test_inputs = val_data["image"].to(device)
-        roi_size = (160, 160, 96)
+        roi_size = (192, 192, 96)
         sw_batch_size = 8
         val_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=True).to('cpu')
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=False).to('cpu')
         
         del val_data["image"]
         torch.cuda.empty_cache()
