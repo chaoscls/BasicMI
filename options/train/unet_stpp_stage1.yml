@@ -1,5 +1,5 @@
 # general settings
-name: unet_ssl_center
+name: unet_stpp_stage1
 model_type: UNetModel
 num_gpu: auto
 manual_seed: 0
@@ -10,7 +10,7 @@ datasets:
     name: train
     type: Artery18SSLTrainDataset
     dataroot: experiments/dataset/18artery/train
-    udataroot: experiments/dataset/LUNA16/st
+    udataroot: experiments/dataset/LUNA16/st_pp/reliable
     # transforms
     a_min: -1200.0
     a_max: 400.0
@@ -36,14 +36,14 @@ datasets:
     # other
     center_crop: true
     enlarge_ratio: 1
-    dataset_type: cache
-    cache_rate: 0.05  # if use cache dataset
+    dataset_type: smart
+    cache_rate: 1.0  # if use cache dataset
     # data loader
     use_shuffle: true
     workers: 16
     batch_size_per_gpu: 4
     pin_memory: true
-    prefetch_mode: ~
+    prefetch_mode: cuda
 
   val:
     name: validation

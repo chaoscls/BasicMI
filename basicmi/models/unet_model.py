@@ -116,6 +116,16 @@ class UNetModel(BaseModel):
 
             # dice loss
             dice_loss= self.cri_dice(self.output, self.target)
+
+            # dice_loss = None
+            # for i in range(0,8,4):
+            #     self.output = self.net(self.data[i:i+4])
+
+            #     # dice loss
+            #     dice_loss = self.cri_dice(self.output, self.target[i:i+4]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+4])
+            
+            # dice_loss /= 2
+
         loss_total += dice_loss
         loss_dict['l_dice'] = dice_loss
         

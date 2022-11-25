@@ -144,13 +144,21 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
         )
 
         if opt["dataset_type"] == 'normal':
-            self.dataset = data.Dataset(data=self.files, transform=transform)
+            self.dataset = data.Dataset(
+                data=self.files, transform=transform
+            )
         elif opt["dataset_type"] == 'cache':
             self.dataset = data.CacheDataset(
                 data=self.files, transform=transform, cache_num=max(16, len(self.files)), cache_rate=1.0, num_workers=opt["workers"]
             )
+        elif opt["dataset_type"] == 'smart':
+            self.dataset = data.SmartCacheDataset(
+                data=self.files, transform=transform, replace_rate=1.0, cache_num=32
+            )
         elif opt["dataset_type"] == 'persist':
-            self.dataset = data.PersistentDataset(data=self.files, transform=transform, cache_dir='experiments/dataset/.train_cache')
+            self.dataset = data.PersistentDataset(
+                data=self.files, transform=transform, cache_dir='experiments/dataset/.train_cache'
+            )
 
     def __getitem__(self, index):
         if self.files[index]["image"] in self.images:
@@ -159,4 +167,5 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
             return self.u_transform(self.dataset[index])
 
     def __len__(self):
-        return len(self.files)
+        # return len(self.files)
+        return 32

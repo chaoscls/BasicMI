@@ -1,5 +1,5 @@
 # general settings
-name: unet_ssl_center
+name: unet_ssl_center_persist
 model_type: UNetModel
 num_gpu: auto
 manual_seed: 0
@@ -36,8 +36,8 @@ datasets:
     # other
     center_crop: true
     enlarge_ratio: 1
-    dataset_type: cache
-    cache_rate: 0.05  # if use cache dataset
+    dataset_type: persist
+    cache_rate: 1.0  # if use cache dataset
     # data loader
     use_shuffle: true
     workers: 16

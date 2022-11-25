@@ -1,5 +1,5 @@
 # general settings
-name: unet_ssl_center
+name: unet_baseline_center_192
 model_type: UNetModel
 num_gpu: auto
 manual_seed: 0
@@ -8,9 +8,8 @@ manual_seed: 0
 datasets:
   train:
     name: train
-    type: Artery18SSLTrainDataset
+    type: Artery18TrainDataset
     dataroot: experiments/dataset/18artery/train
-    udataroot: experiments/dataset/LUNA16/st
     # transforms
     a_min: -1200.0
     a_max: 400.0
@@ -19,25 +18,21 @@ datasets:
     space_x: 1.5
     space_y: 1.5
     space_z: 2.0
-    roi_x: 160
-    roi_y: 160
+    roi_x: 192
+    roi_y: 192
     roi_z: 96
     RandFlipd_prob: 0.2
     RandRotate90d_prob: 0.2
+    RandScaleIntensityd_prob: 0.1
+    RandShiftIntensityd_prob: 0.1
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
-    # Rand3DElasticd
-    elastic_prob: 0.5
-    shear_range: [0.2,0.2,0.2,0.2,0.2,0.2]
-    # Intensity
-    RandScaleIntensityd_prob: 0.5
-    RandShiftIntensityd_prob: 0.5
     # other
     center_crop: true
     enlarge_ratio: 1
     dataset_type: cache
-    cache_rate: 0.05  # if use cache dataset
+    cache_rate: 1.0  # if use cache dataset
     # data loader
     use_shuffle: true
     workers: 16
@@ -146,7 +141,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.4
-    roi_size: [160, 160, 96]
+    roi_size: [192, 192, 96]
 
   metrics:
     dice: # metric name
