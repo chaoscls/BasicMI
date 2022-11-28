@@ -131,11 +131,13 @@ with torch.no_grad():
             acc_list.append(acc_fun.aggregate().item())
 
         acc = sum(acc_list) / len(acc_list)
+        print(f'{osp.basename(name)}, dice: {acc}')
 
         reliability_list.append((name, acc))
 
-# df = pd.DataFrame(reliability_list)
-# writer = pd.ExcelWriter('1.xlsx')
+
+# df = pd.DataFrame([{'name': elem[0], 'acc': elem[1]} for elem in reliability_list])
+# writer = pd.ExcelWriter('~/res.xlsx')
 # df.to_excel(writer)
 # writer.save()
 

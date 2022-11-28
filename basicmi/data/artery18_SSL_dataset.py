@@ -7,6 +7,7 @@ import numpy as np
 from monai import data, transforms
 
 from basicmi.utils.registry import DATASET_REGISTRY
+from basicmi.utils import get_root_logger
 
 class RandCropWithCenterCrop(transforms.Randomizable, transforms.MapTransform):
     def __init__(
@@ -57,13 +58,17 @@ class Artery18SSLTrainDataset(torch.utils.data.Dataset):
         data_dir = self.opt["dataroot"]
         u_data_dir = self.opt["udataroot"]
 
+        logger = get_root_logger()
+
         self.images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
         labels = sorted(glob.glob(os.path.join(data_dir, "labels", "*.nii.gz")))
         l_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(self.images, labels)]
+        logger.info(f'labeled data: {len(l_files)}')
         
         u_images = sorted(glob.glob(os.path.join(u_data_dir, "images", "*.nii.gz")))
         u_labels = sorted(glob.glob(os.path.join(u_data_dir, "labels", "*.nii.gz")))
         u_files = [{"image": image_name, "label": label_name} for image_name, label_name in zip(u_images, u_labels)]
+        logger.info(f'unlabeled data: {len(u_files)}')
 
         self.files = l_files * math.ceil(len(u_files) / len(l_files)) + u_files
 
