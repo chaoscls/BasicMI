@@ -102,7 +102,7 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                     spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"]),
                     pos=1,
                     neg=1,
-                    num_samples=2,
+                    num_samples=opt['num_samples'],
                     image_key="image",
                     image_threshold=0,
                     allow_smaller=True, 
@@ -114,7 +114,7 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                     spatial_size=(opt["roi_x"], opt["roi_y"], opt["roi_z"]),
                     pos=1,
                     neg=1,
-                    num_samples=2,
+                    num_samples=opt['num_samples'],
                     image_key="image",
                     image_threshold=0,
                     allow_smaller=True,
@@ -124,9 +124,7 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=0),
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=1),
                 transforms.RandFlipd(keys=keys_tmp, prob=opt["RandFlipd_prob"], spatial_axis=2),
-                transforms.RandRotate90d(keys=keys_tmp, prob=opt["RandRotate90d_prob"], max_k=3),
-                # transforms.RandScaleIntensityd(keys=["image", "center_image"], factors=0.1, prob=opt["RandScaleIntensityd_prob"]),
-                # transforms.RandShiftIntensityd(keys=["image", "center_image"], offsets=0.1, prob=opt["RandShiftIntensityd_prob"]),
+                # transforms.RandRotate90d(keys=keys_tmp, prob=opt["RandRotate90d_prob"], max_k=3),
                 transforms.ToTensord(keys=keys_tmp),
             ]
         )

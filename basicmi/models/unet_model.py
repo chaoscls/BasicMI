@@ -48,6 +48,8 @@ class UNetModel(BaseModel):
     def init_training_settings(self):
         train_opt = self.opt['train']
 
+        self.bs = train_opt['bs']
+
         self.net.train()
 
         # ----------- define losses ----------- #
@@ -118,13 +120,11 @@ class UNetModel(BaseModel):
             # dice_loss = self.cri_dice(self.output, self.target)
 
             dice_loss = None
-            for i in range(0,8,4):
-                self.output = self.net(self.data[i:i+4])
-
-                # dice loss
-                dice_loss = self.cri_dice(self.output, self.target[i:i+4]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+4])
+            for i in range(0,self.data.shape[0],self.bs):
+                self.output = self.net(self.data[i:i+self.bs])
+                dice_loss = self.cri_dice(self.output, self.target[i:i+self.bs]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+self.bs])
             
-            dice_loss /= 2
+            dice_loss /= self.data.shape[0] // self.bs
 
         loss_total += dice_loss
         loss_dict['l_dice'] = dice_loss
