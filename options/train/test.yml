@@ -1,6 +1,6 @@
 # general settings
 name: test
-model_type: UNetModel
+model_type: UNetRCNNModel
 num_gpu: auto
 manual_seed: 0
 
@@ -22,9 +22,10 @@ datasets:
     roi_y: 192
     roi_z: 96
     RandFlipd_prob: 0.2
-    RandRotate90d_prob: 0.2
-    RandScaleIntensityd_prob: 0.1
-    RandShiftIntensityd_prob: 0.1
+    # RandRotate90d_prob: 0.2
+    # RandScaleIntensityd_prob: 0.1
+    # RandShiftIntensityd_prob: 0.1
+    num_samples: 1
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
@@ -83,7 +84,7 @@ datasets:
 
 # network structures
 network:
-  type: UNet
+  type: UNetRCNN
   spatial_dims: 3
   in_channels: 1
   out_channels: 19
@@ -92,6 +93,7 @@ network:
   num_res_units: 2
   act: LEAKYRELU
   norm: INSTANCE
+  step_num: 2
 
 # path
 path:
@@ -109,15 +111,20 @@ train:
     weight_decay: !!float 1e-5
 
   scheduler:
-    type: CosineAnnealingRestartLR 
-    periods: [10, 10, 10, 10]
-    restart_weights: [1.0, 0.5, 0.5, 0.5]
+    type: MultiStepLR 
+    milestones: [20, 40, 60, 80]
+    gamma: 0.5
+    
+    # type: CosineAnnealingRestartLR 
+    # periods: [10, 10, 10, 10]
+    # restart_weights: [1.0, 0.5, 0.5, 0.5]
 
   # total_iter: 40000
   # warmup_iter: 200
 
-  total_iter: 40
-  warmup_iter: 3
+  total_iter: 100
+  warmup_iter: 10
+  bs: 2
 
   # losses
   # dice loss
@@ -150,7 +157,7 @@ val:
 
 # logging settings
 logger:
-  print_freq: 5
+  print_freq: 1
   save_checkpoint_freq: !!float 500
   use_tb_logger: true
 

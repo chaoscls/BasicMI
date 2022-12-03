@@ -112,14 +112,14 @@ train:
     # weight_decay: 0
 
   scheduler:
-    # type: MultiStepLR 
-    # milestones: [4000, 8000, 12000, 16000]
-    # gamma: 0.5
+    type: MultiStepLR 
+    milestones: [5000, 10000, 32000, 40000, 60000]
+    gamma: 0.1
 
-    type: CosineAnnealingRestartLR 
-    periods: [80000]
-    restart_weights: [1.0]
-    eta_min: !!float 1e-8
+    # type: CosineAnnealingRestartLR 
+    # periods: [80000]
+    # restart_weights: [1.0]
+    # eta_min: !!float 1e-8
 
   total_iter: 80000
   warmup_iter: 1000

@@ -1,6 +1,6 @@
 # general settings
-name: unet_baseline_192
-model_type: UNetModel
+name: unet_rcnn_192
+model_type: UNetRCNNModel
 num_gpu: auto
 manual_seed: 0
 
@@ -22,11 +22,7 @@ datasets:
     roi_y: 192
     roi_z: 96
     RandFlipd_prob: 0.2
-    # RandRotate90d_prob: 0.2
-    # RandScaleIntensityd_prob: 0.1
-    # RandShiftIntensityd_prob: 0.1
-    # RandCropByPosNegLabeld
-    num_samples: 2
+    num_samples: 1
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
@@ -75,7 +71,7 @@ datasets:
     space_y: 1.5
     space_z: 2.0
     # other
-    valid_num: ~
+    valid_num: 10
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -85,15 +81,16 @@ datasets:
 
 # network structures
 network:
-  type: UNet
+  type: UNetRCNN
   spatial_dims: 3
   in_channels: 1
-  out_channels: 19
+  out_channels: 20
   channels: [32, 64, 128, 256, 512]
   strides: [2, 2, 2, 2]
   num_res_units: 2
   act: LEAKYRELU
   norm: INSTANCE
+  step_num: 2
 
 # path
 path:
@@ -107,13 +104,13 @@ path:
 train:
   optim:
     type: Adam
-    lr: !!float 1e-3
+    lr: !!float 1e-2
     weight_decay: !!float 1e-3
     # weight_decay: 0
 
   scheduler:
     type: MultiStepLR 
-    milestones: [5000, 10000, 20000, 40000, 60000]
+    milestones: [2500, 5000, 10000, 20000, 40000, 60000]
     gamma: 0.1
 
     # type: CosineAnnealingRestartLR 
@@ -122,8 +119,8 @@ train:
     # eta_min: !!float 1e-8
 
   total_iter: 80000
-  warmup_iter: 1000
-  bs: 4
+  warmup_iter: 200
+  bs: 1
 
   # losses
   # dice loss

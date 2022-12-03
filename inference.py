@@ -23,11 +23,9 @@ from monai.handlers.utils import from_engine
 
 from basicmi.inferers.utils import sliding_window_inference
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='experiments/dataset/18artery/train', type=str)
-parser.add_argument('--load_path', default='experiments/unet_baseline_pulmonary_seg/models/net_best.pth', type=str)
+parser.add_argument('--load_path', default='experiments/unet_baseline_artery_192/models/net_latest.pth', type=str)
 args = parser.parse_args()
 
 data_dir = args.data_dir
@@ -69,8 +67,8 @@ post_transforms = Compose([
     ),
     AsDiscreted(keys="pred", argmax=True),
     SaveImaged(keys="pred", meta_keys="pred_meta_dict", output_dir="./out/train", output_postfix="seg", resample=False),
-    AsDiscreted(keys="pred", to_onehot=19),
-    AsDiscreted(keys="label", to_onehot=19),
+    # AsDiscreted(keys="pred", to_onehot=19),
+    # AsDiscreted(keys="label", to_onehot=19),
 ])
 
 acc_fun = DiceMetric(
@@ -82,8 +80,8 @@ acc_fun = DiceMetric(
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = UNet(
     spatial_dims=3,
-    in_channels=2,
-    out_channels=19,
+    in_channels=1,
+    out_channels=2,
     channels=[32, 64, 128, 256, 512],
     strides=[2, 2, 2, 2],
     num_res_units=2,
@@ -97,17 +95,17 @@ model.eval()
 with torch.no_grad():
     for val_data in loader:
         test_inputs = val_data["image"].to(device)
-        roi_size = (160, 160, 96)
+        roi_size = (192, 192, 96)
         sw_batch_size = 4
         val_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=True)
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=False)
         val_data = [post_transforms(i) for i in decollate_batch(val_data)]
-        val_outputs, val_labels = from_engine(["pred", "label"])(val_data)
-        acc_fun.reset()
-        acc_fun(val_outputs, val_labels)
-        acc = acc_fun.aggregate().item()
-        val_data = val_data[0]
-        print(f"{osp.basename(val_data['image'].meta['filename_or_obj']).split('.')[0]}, origin shape: {val_data['label'].shape[1:]}, transform shape: {val_data['image'].shape[1:]}, acc: {acc}")
+        # val_outputs, val_labels = from_engine(["pred", "label"])(val_data)
+        # acc_fun.reset()
+        # acc_fun(val_outputs, val_labels)
+        # acc = acc_fun.aggregate().item()
+        # val_data = val_data[0]
+        # print(f"{osp.basename(val_data['image'].meta['filename_or_obj']).split('.')[0]}, origin shape: {val_data['label'].shape[1:]}, transform shape: {val_data['image'].shape[1:]}, acc: {acc}")
 
         del val_data
         torch.cuda.empty_cache()
