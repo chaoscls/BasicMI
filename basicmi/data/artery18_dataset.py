@@ -71,9 +71,10 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                transforms.CropForegroundd(keys=["image", "label"], source_key="image"),
+                # transforms.CropForegroundd(keys=["image", "label"], source_key="image"),
+                transforms.CropForegroundd(keys=["image", "label"], source_key="label", margin=10),
                 # transforms.ToDeviced(keys=["image", "label"], device='cuda'),
-                transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta= False),
+                transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta=False),
                 transforms.RandRotated(
                     keys=["image", "label"],
                     range_x=opt['rotate_range'],
@@ -169,7 +170,7 @@ class Artery18ValidationDataset(torch.utils.data.Dataset):
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                transforms.CropForegroundd(keys=["image", "label"], source_key="image"),
+                transforms.CropForegroundd(keys=["image", "label"], source_key="label", margin=10),
                 # transforms.ToTensord(keys=["image", "label"]),
                 # transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta= False),
             ]

@@ -140,7 +140,7 @@ class UNetRCNNModel(BaseModel):
             # print(key, losses[key], self.data.shape[0], self.bs, self.data.shape[0] // self.bs)
             losses[key] /= self.data.shape[0] // self.bs
             # print(key, losses[key])
-            loss_total += losses[key] if 'artery' not in key else losses[key] / 2
+            loss_total += losses[key] if 'artery' not in key else losses[key] * 0.1
 
         loss_dict.update(losses)
         
@@ -210,8 +210,6 @@ class UNetRCNNModel(BaseModel):
                 # calculate metrics
                 # dice metric
                 self.metric_results['dice'] += self.dice_metric(self.output[:,1:,...], self.target).item()
-                dice_loss = self.cri_dice(self.output[:,1:,...], self.target)
-                # print("=>", self.output[:,1:,...].shape, dice_loss)
             
             # tentative for out of GPU memory
             del self.data
@@ -227,15 +225,16 @@ class UNetRCNNModel(BaseModel):
             pbar.close()
 
         if with_metrics:
-            if current_iter > 10000 and dataset_name == "val" and self.best_acc > self.metric_results['dice']:
-                logger = get_root_logger()
-                logger.info('Save the best model.')
-                self.save_network(self.net, 'net', -2) # save best
-                self.best_acc = self.metric_results['dice'] 
             for metric in self.metric_results.keys():
                 self.metric_results[metric] /= (idx + 1)
                 # update the best metric result
                 self._update_best_metric_result(dataset_name, metric, self.metric_results[metric], current_iter)
+            
+            if current_iter > 10000 and dataset_name == "val" and self.best_acc < self.metric_results['dice']:
+                logger = get_root_logger()
+                logger.info('Save the best model.')
+                self.save_network(self.net, 'net', -2) # save best
+                self.best_acc = self.metric_results['dice'] 
 
             self._log_validation_metric_values(current_iter, dataset_name, tb_logger)
 
