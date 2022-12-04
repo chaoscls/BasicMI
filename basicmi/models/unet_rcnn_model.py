@@ -230,7 +230,7 @@ class UNetRCNNModel(BaseModel):
                 # update the best metric result
                 self._update_best_metric_result(dataset_name, metric, self.metric_results[metric], current_iter)
             
-            if current_iter > 10000 and dataset_name == "val" and self.best_acc < self.metric_results['dice']:
+            if current_iter > 5000 and dataset_name == "validation" and self.best_acc < self.metric_results['dice']:
                 logger = get_root_logger()
                 logger.info('Save the best model.')
                 self.save_network(self.net, 'net', -2) # save best

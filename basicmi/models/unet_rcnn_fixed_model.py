@@ -16,11 +16,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class UNetRCNNFixedModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(UNetRCNNFixedModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
         self.center_crop = opt["datasets"]["train"]["center_crop"]
 
@@ -58,7 +58,7 @@ class UNetModel(BaseModel):
             self.cri_dice = build_loss(train_opt['dice_opt']).to(self.device)
         else:
             self.cri_dice = None
-
+        
         # set up optimizers and schedulers
         self.setup_optimizers()
         self.setup_schedulers()
@@ -119,15 +119,21 @@ class UNetModel(BaseModel):
             # # dice loss
             # dice_loss = self.cri_dice(self.output, self.target)
 
-            dice_loss = None
+            losses = {}
             for i in range(0,self.data.shape[0],self.bs):
-                self.output = self.net(self.data[i:i+self.bs])
-                dice_loss = self.cri_dice(self.output, self.target[i:i+self.bs]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+self.bs])
-            
-            dice_loss /= self.data.shape[0] // self.bs
+                
+                self.outputs = self.net(self.data[i:i+self.bs], True)
+                for j, output in enumerate(self.outputs):
+                    losses[f'l_dice{j}'] = self.cri_dice(output, self.target[i:i+self.bs]) if losses.get(f'l_dice{j}', None) == None else losses[f'l_dice{j}'] + self.cri_dice(output, self.target[i:i+self.bs])
 
-        loss_total += dice_loss
-        loss_dict['l_dice'] = dice_loss
+        
+        for key in losses:
+            # print(key, losses[key], self.data.shape[0], self.bs, self.data.shape[0] // self.bs)
+            losses[key] /= self.data.shape[0] // self.bs
+            # print(key, losses[key])
+            loss_total += losses[key] if 'artery' not in key else losses[key] * 0.1
+
+        loss_dict.update(losses)
         
         self.optimizer.zero_grad()
         if self.opt['amp']:

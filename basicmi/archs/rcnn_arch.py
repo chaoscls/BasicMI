@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from typing import Optional, Sequence, Tuple, Union
 from monai.networks.layers.factories import Act, Norm
@@ -30,9 +31,14 @@ class RCNN(nn.Module):
 @ARCH_REGISTRY.register()
 class UNetRCNN(nn.Module):
 
-    def __init__(self, step_num, **kwargs):
+    def __init__(self, step_num, unet_load_path=None, fix_unet=False, **kwargs):
         super().__init__()
         self.unet = UNet(**kwargs)
+        if unet_load_path:
+            self.unet.load_state_dict(torch.load(unet_load_path, map_location=lambda storage, loc: storage)["params"])
+        if fix_unet:
+            for _, param in self.unet.named_parameters():
+                param.requires_grad = False
         self.rcnn = RCNN(kwargs['out_channels'], step_num)
     
     def forward(self, x, multi_ret=False):
