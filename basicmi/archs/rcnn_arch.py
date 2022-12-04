@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-from typing import Optional, Sequence, Tuple, Union
-from monai.networks.layers.factories import Act, Norm
 
 from basicmi.utils.registry import ARCH_REGISTRY
 from basicmi.archs.unet_arch import UNet
@@ -11,15 +9,16 @@ class RCNN(nn.Module):
 
     def __init__(self, channels, step_num):
         super().__init__()
-        self.rcnn = nn.Sequential(
-            nn.InstanceNorm3d(channels),
-            nn.LeakyReLU(),
-            nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1),
-            nn.InstanceNorm3d(channels),
-            nn.LeakyReLU(),
-            nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1),
-        )
         self.step_num = step_num
+        if step_num > 0:
+            self.rcnn = nn.Sequential(
+                nn.InstanceNorm3d(channels),
+                nn.LeakyReLU(),
+                nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1),
+                nn.InstanceNorm3d(channels),
+                nn.LeakyReLU(),
+                nn.Conv3d(channels, channels, kernel_size=3, stride=1, padding=1),
+            )
 
     def forward(self, x, multi_ret=False):
         ret = [x]
