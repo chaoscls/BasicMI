@@ -118,7 +118,8 @@ class U2NET(nn.Module):
             x = torch.cat(maps, 1)
             x = getattr(self, 'outconv')(x)
             maps.insert(0, x)
-            return [torch.sigmoid(x) for x in maps]
+            # return [torch.sigmoid(x) for x in maps]
+            return maps
 
         unet(x)
         maps = fuse()
