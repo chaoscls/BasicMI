@@ -16,11 +16,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class U2NETModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(U2NETModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
         self.center_crop = opt["datasets"]["train"]["center_crop"]
 
@@ -37,9 +37,9 @@ class UNetModel(BaseModel):
 
         if self.is_train:
             self.init_training_settings()
-        
+
         self.init_val_settings()
-    
+
     def init_val_settings(self):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)
@@ -48,7 +48,7 @@ class UNetModel(BaseModel):
     def init_training_settings(self):
         train_opt = self.opt['train']
 
-        self.bs = train_opt['bs']
+        self.acc_num = train_opt['acc_num']
 
         self.net.train()
 
@@ -113,31 +113,44 @@ class UNetModel(BaseModel):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
-            # # optimize net
-            # self.output = self.net(self.data)
+            # optimize net
+            self.outputs = self.net(self.data)
 
-            # # dice loss
-            # dice_loss = self.cri_dice(self.output, self.target)
+            # dice loss
+            losses = []
+            for output in self.outputs:
+                losses.append(self.cri_dice(output, self.target))
 
-            dice_loss = None
-            for i in range(0,self.data.shape[0],self.bs):
-                self.output = self.net(self.data[i:i+self.bs])
-                dice_loss = self.cri_dice(self.output, self.target[i:i+self.bs]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+self.bs])
+            # dice_loss = None
+            # for i in range(0,self.data.shape[0],self.bs):
+            #     self.output = self.net(self.data[i:i+self.bs])
+            #     dice_loss = self.cri_dice(self.output, self.target[i:i+self.bs]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+self.bs])
             
-            dice_loss /= self.data.shape[0] // self.bs
+            # dice_loss /= self.data.shape[0] // self.bs
 
-        loss_total += dice_loss
-        loss_dict['l_dice'] = dice_loss
+        # for loss in losses:
+        #     loss_total += loss
+        loss_total += sum(losses)
+        loss_dict['l_dice'] = losses[0]
+        loss_dict.update({f'l_dice{i}': dice_loss for i, dice_loss in enumerate(losses[1:])})
 
-        self.optimizer.zero_grad()
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            # self.scaler.step(self.optimizer)
+            # self.scaler.update()
+            # self.optimizer.zero_grad()
+            if current_iter % self.acc_num == 0:
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad()
         else:
             loss_total.backward()
-            self.optimizer.step()
-
+            # self.optimizer.step()
+            # self.optimizer.zero_grad()
+            if current_iter % self.acc_num == 0:
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+        
         self.log_dict = self.reduce_loss_dict(loss_dict)
 
     def test(self):

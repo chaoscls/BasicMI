@@ -1,6 +1,6 @@
 # general settings
-name: unet_baseline_192
-model_type: UNetModel
+name: u2net_baseline
+model_type: U2NETModel
 num_gpu: auto
 manual_seed: 0
 
@@ -26,7 +26,7 @@ datasets:
     # RandScaleIntensityd_prob: 0.1
     # RandShiftIntensityd_prob: 0.1
     # RandCropByPosNegLabeld
-    num_samples: 2
+    num_samples: 1
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
@@ -38,7 +38,7 @@ datasets:
     # data loader
     use_shuffle: true
     workers: 16
-    batch_size_per_gpu: 4
+    batch_size_per_gpu: 1
     pin_memory: true
     prefetch_mode: cuda
 
@@ -85,15 +85,9 @@ datasets:
 
 # network structures
 network:
-  type: UNet
-  spatial_dims: 3
+  type: U2NETP
   in_channels: 1
   out_channels: 19
-  channels: [32, 64, 128, 256, 512]
-  strides: [2, 2, 2, 2]
-  num_res_units: 2
-  act: LEAKYRELU
-  norm: INSTANCE
 
 # path
 path:
@@ -107,23 +101,23 @@ path:
 train:
   optim:
     type: Adam
-    lr: !!float 1e-3
-    weight_decay: !!float 1e-3
+    lr: !!float 5e-4
+    weight_decay: !!float 1e-5
     # weight_decay: 0
 
   scheduler:
     # type: MultiStepLR 
-    # milestones: [2500, 5000, 10000, 15000, 20000, 25000, 30000, 35000]
-    # gamma: 0.2
+    # milestones: [4000, 8000, 12000, 16000]
+    # gamma: 0.5
 
     type: CosineAnnealingRestartLR 
-    periods: [10000, 10000, 10000, 10000, 10000]
+    periods: [20000, 20000, 20000, 20000, 20000]
     restart_weights: [1.0, 0.5, 0.1, 0.5, 0.1]
     eta_min: !!float 1e-8
 
-  total_iter: 50000
-  warmup_iter: 500
-  acc_num: 2
+  total_iter: 100000
+  warmup_iter: 2000
+  acc_num: 8
 
   # losses
   # dice loss
@@ -137,12 +131,12 @@ train:
 
 # validation settings
 val:
-  val_freq: !!float 100
+  val_freq: !!float 200
   save_img: false
   pbar: true
 
   model_inferer:
-    sw_batch_size: 4
+    sw_batch_size: 1
     infer_overlap: 0.5
     roi_size: [192, 192, 96]
 
@@ -156,8 +150,8 @@ val:
 
 # logging settings
 logger:
-  print_freq: 20
-  save_checkpoint_freq: !!float 500
+  print_freq: 40
+  save_checkpoint_freq: !!float 2000
   use_tb_logger: true
 
 # dist training settings

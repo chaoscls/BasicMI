@@ -1,6 +1,6 @@
 # general settings
 name: test
-model_type: UNetRCNNModel
+model_type: SwinUNETRModel
 num_gpu: auto
 manual_seed: 0
 
@@ -37,9 +37,9 @@ datasets:
     # data loader
     use_shuffle: true
     workers: 0
-    batch_size_per_gpu: 3
+    batch_size_per_gpu: 1
     pin_memory: true
-    prefetch_mode: ~
+    prefetch_mode: cuda
 
   val:
     name: validation
@@ -74,7 +74,7 @@ datasets:
     space_y: 1.5
     space_z: 2.0
     # other
-    valid_num: 4
+    valid_num: ~
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -84,16 +84,23 @@ datasets:
 
 # network structures
 network:
-  type: UNetRCNN
+  # type: UNetRCNN
+  # spatial_dims: 3
+  # in_channels: 1
+  # out_channels: 19
+  # channels: [32, 64, 128, 256, 512]
+  # strides: [2, 2, 2, 2]
+  # num_res_units: 2
+  # act: LEAKYRELU
+  # norm: INSTANCE
+  # step_num: 2
+
+  type: SwinUNETR
+  img_size: [192, 192, 96]
   spatial_dims: 3
   in_channels: 1
   out_channels: 19
-  channels: [32, 64, 128, 256, 512]
-  strides: [2, 2, 2, 2]
-  num_res_units: 2
-  act: LEAKYRELU
-  norm: INSTANCE
-  step_num: 2
+  feature_size: 48
 
 # path
 path:
