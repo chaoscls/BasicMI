@@ -136,17 +136,12 @@ class U2NETModel(BaseModel):
 
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()
-            # self.scaler.step(self.optimizer)
-            # self.scaler.update()
-            # self.optimizer.zero_grad()
             if current_iter % self.acc_num == 0:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
                 self.optimizer.zero_grad()
         else:
             loss_total.backward()
-            # self.optimizer.step()
-            # self.optimizer.zero_grad()
             if current_iter % self.acc_num == 0:
                 self.optimizer.step()
                 self.optimizer.zero_grad()

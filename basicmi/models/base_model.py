@@ -17,17 +17,23 @@ class BaseModel():
         self.opt = opt
         self.device = torch.device('cuda' if opt['num_gpu'] != 0 else 'cpu')
         self.is_train = opt['is_train']
+        self.acc_step_num = opt['train'].get('acc_step_num', 1)
         self.schedulers = []
         self.optimizers = []
 
     def feed_data(self, data):
         pass
 
-    def optimize_parameters(self):
+    def forward(self):
         pass
 
-    # def get_current_visuals(self):
-    #     pass
+    def optimize_parameters(self):
+        if self.opt['amp']:
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def save(self, epoch, current_iter):
         """Save networks and training state."""
@@ -82,7 +88,13 @@ class BaseModel():
     #         net_g_ema_params[k].data.mul_(decay).add_(net_g_params[k].data, alpha=1 - decay)
 
     def get_current_log(self):
-        return self.log_dict
+        log_dict = {key: val / self.acc_step_num for key, val in self.log_dict.items()}
+        self.log_dict.clear()
+        return log_dict
+
+    def update_log(self, log_dict):
+        for key, val in log_dict.items():
+            self.log_dict[key] = self.log_dict.get(key, 0) + val
 
     def model_to_device(self, net):
         """Model to device. It also warps models with DistributedDataParallel
@@ -123,12 +135,6 @@ class BaseModel():
         """Set up schedulers."""
         train_opt = self.opt['train']
         scheduler_type = train_opt['scheduler'].pop('type')
-        # if scheduler_type == 'warmup_cosine':
-        #     for optimizer in self.optimizers:
-        #         self.schedulers.append(lr_scheduler.LinearWarmupCosineAnnealingLR(optimizer, **train_opt['scheduler']))
-        # elif scheduler_type == 'cosine_anneal':
-        #     for optimizer in self.optimizers:
-        #         self.schedulers.append(torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **train_opt['scheduler']))
         if scheduler_type in ['MultiStepLR', 'MultiStepRestartLR']:
             for optimizer in self.optimizers:
                 self.schedulers.append(lr_scheduler.MultiStepRestartLR(optimizer, **train_opt['scheduler']))
@@ -399,3 +405,28 @@ class BaseModel():
 
             return log_dict
 
+    def resume_training(self, resume_state):
+        """Reload the optimizers, schedulers and models for resumed training.
+
+        Args:
+            resume_state (dict): Resume state.
+        """
+        resume_optimizers = resume_state['optimizers']
+        resume_schedulers = resume_state['schedulers']
+        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
+        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
+        for i, o in enumerate(resume_optimizers):
+            self.optimizers[i].load_state_dict(o)
+        for i, s in enumerate(resume_schedulers):
+            self.schedulers[i].load_state_dict(s)
+
+        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
+        param_key = self.opt['path'].get('param_key', 'params')
+        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
+
+    def save(self, epoch, current_iter):
+        # save net
+        self.save_network(self.net, 'net', current_iter)
+        # save training state
+        self.save_training_state(epoch, current_iter)
+        
