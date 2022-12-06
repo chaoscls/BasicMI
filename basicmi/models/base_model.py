@@ -18,6 +18,7 @@ class BaseModel():
         self.device = torch.device('cuda' if opt['num_gpu'] != 0 else 'cpu')
         self.is_train = opt['is_train']
         self.acc_step_num = opt['train'].get('acc_step_num', 1)
+        self.log_dict = {}
         self.schedulers = []
         self.optimizers = []
 
@@ -343,6 +344,8 @@ class BaseModel():
                 state['optimizers'].append(o.state_dict())
             for s in self.schedulers:
                 state['schedulers'].append(s.state_dict())
+            if self.opt['amp']:
+                state['scaler'] = self.scaler.state_dict()
             save_filename = f'{current_iter}.state'
             save_path = os.path.join(self.opt['path']['training_states'], save_filename)
 
@@ -364,7 +367,7 @@ class BaseModel():
                 # raise IOError(f'Cannot save {save_path}.')
 
     def resume_training(self, resume_state):
-        """Reload the optimizers and schedulers for resumed training.
+        """Reload the optimizers, schedulers and models for resumed training.
 
         Args:
             resume_state (dict): Resume state.
@@ -377,6 +380,12 @@ class BaseModel():
             self.optimizers[i].load_state_dict(o)
         for i, s in enumerate(resume_schedulers):
             self.schedulers[i].load_state_dict(s)
+        if self.opt['amp']:
+            self.scaler.load_state_dict(resume_state['scaler'])
+
+        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
+        param_key = self.opt['path'].get('param_key', 'params')
+        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
 
     def reduce_loss_dict(self, loss_dict):
         """reduce loss dict.
@@ -404,25 +413,6 @@ class BaseModel():
                 log_dict[name] = value.mean().item()
 
             return log_dict
-
-    def resume_training(self, resume_state):
-        """Reload the optimizers, schedulers and models for resumed training.
-
-        Args:
-            resume_state (dict): Resume state.
-        """
-        resume_optimizers = resume_state['optimizers']
-        resume_schedulers = resume_state['schedulers']
-        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
-        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
-        for i, o in enumerate(resume_optimizers):
-            self.optimizers[i].load_state_dict(o)
-        for i, s in enumerate(resume_schedulers):
-            self.schedulers[i].load_state_dict(s)
-
-        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
-        param_key = self.opt['path'].get('param_key', 'params')
-        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
 
     def save(self, epoch, current_iter):
         # save net

@@ -48,8 +48,6 @@ class SwinUNETRModel(BaseModel):
     def init_training_settings(self):
         train_opt = self.opt['train']
 
-        self.acc_num = train_opt['acc_num']
-
         self.net.train()
 
         # ----------- define losses ----------- #
@@ -109,7 +107,7 @@ class SwinUNETRModel(BaseModel):
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
 
-    def optimize_parameters(self, current_iter):
+    def forward(self):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
@@ -119,29 +117,16 @@ class SwinUNETRModel(BaseModel):
             # dice loss
             dice_loss = self.cri_dice(self.output, self.target)
 
-            # dice_loss = None
-            # for i in range(0,self.data.shape[0],self.bs):
-            #     self.output = self.net(self.data[i:i+self.bs])
-            #     dice_loss = self.cri_dice(self.output, self.target[i:i+self.bs]) if dice_loss == None else dice_loss + self.cri_dice(self.output, self.target[i:i+self.bs])
-            
-            # dice_loss /= self.data.shape[0] // self.bs
-
         loss_total += dice_loss
         loss_dict['l_dice'] = dice_loss
 
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()
-            if current_iter % self.acc_num == 0:
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-                self.optimizer.zero_grad()
         else:
             loss_total.backward()
-            if current_iter % self.acc_num == 0:
-                self.optimizer.step()
-                self.optimizer.zero_grad()
 
-        self.log_dict = self.reduce_loss_dict(loss_dict)
+        log_dict = self.reduce_loss_dict(loss_dict)
+        self.update_log(log_dict)
 
     def test(self):
         self.net.eval()
@@ -240,29 +225,3 @@ class SwinUNETRModel(BaseModel):
         if tb_logger:
             for metric, value in self.metric_results.items():
                 tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
-
-    def resume_training(self, resume_state):
-        """Reload the optimizers, schedulers and models for resumed training.
-
-        Args:
-            resume_state (dict): Resume state.
-        """
-        resume_optimizers = resume_state['optimizers']
-        resume_schedulers = resume_state['schedulers']
-        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
-        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
-        for i, o in enumerate(resume_optimizers):
-            self.optimizers[i].load_state_dict(o)
-        for i, s in enumerate(resume_schedulers):
-            self.schedulers[i].load_state_dict(s)
-
-        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
-        param_key = self.opt['path'].get('param_key', 'params')
-        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
-
-    def save(self, epoch, current_iter):
-        # save net and net_d
-        self.save_network(self.net, 'net', current_iter)
-        # save training state
-        self.save_training_state(epoch, current_iter)
-

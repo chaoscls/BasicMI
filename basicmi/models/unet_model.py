@@ -48,8 +48,6 @@ class UNetModel(BaseModel):
     def init_training_settings(self):
         train_opt = self.opt['train']
 
-        self.bs = train_opt['bs']
-
         self.net.train()
 
         # ----------- define losses ----------- #
@@ -109,7 +107,7 @@ class UNetModel(BaseModel):
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
     
-    def forward(self, current_iter):
+    def forward(self):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
@@ -227,6 +225,3 @@ class UNetModel(BaseModel):
         if tb_logger:
             for metric, value in self.metric_results.items():
                 tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
-
-
-
