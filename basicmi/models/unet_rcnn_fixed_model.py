@@ -22,7 +22,6 @@ class UNetRCNNFixedModel(BaseModel):
     def __init__(self, opt):
         super(UNetRCNNFixedModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
-        self.center_crop = opt["datasets"]["train"]["center_crop"]
 
         # define network
         self.net = build_network(opt['network'])
@@ -87,11 +86,7 @@ class UNetRCNNFixedModel(BaseModel):
         if isinstance(batch_data, list):
             self.data, self.target = batch_data
         else:
-            if "center_image" in batch_data:
-                self.data, self.target, center_image = batch_data["image"], batch_data["label"], batch_data["center_image"]
-                self.data = torch.cat([self.data, center_image], dim=1)
-            else:
-                self.data, self.target= batch_data["image"], batch_data["label"]
+            self.data, self.target= batch_data["image"], batch_data["label"]
 
         self.data = self.data.to(self.device)
         self.target = self.target.to(self.device)
@@ -157,7 +152,6 @@ class UNetRCNNFixedModel(BaseModel):
                     sw_batch_size=model_inferer_opt['sw_batch_size'],
                     predictor=self.net,
                     overlap=model_inferer_opt['infer_overlap'],
-                    center_crop=self.center_crop,
                 )
         self.net.train()
 

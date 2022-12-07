@@ -98,7 +98,7 @@ with torch.no_grad():
         roi_size = (192, 192, 96)
         sw_batch_size = 4
         val_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=False)
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5)
         val_data = [post_transforms(i) for i in decollate_batch(val_data)]
         # val_outputs, val_labels = from_engine(["pred", "label"])(val_data)
         # acc_fun.reset()

@@ -15,23 +15,15 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
-    roi_x: 192
-    roi_y: 192
-    roi_z: 96
+    space: [1.0, 1.0, 1.6]
+    spatial_size: [192, 160, 96]
     RandFlipd_prob: 0.2
-    # RandRotate90d_prob: 0.2
-    # RandScaleIntensityd_prob: 0.1
-    # RandShiftIntensityd_prob: 0.1
     # RandCropByPosNegLabeld
     num_samples: 4
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
     # other
-    center_crop: false
     enlarge_ratio: 1
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
@@ -51,9 +43,7 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
+    space: [1.0, 1.0, 1.6]
     # other
     valid_num: ~
     dataset_type: cache
@@ -71,9 +61,7 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
+    space: [1.0, 1.0, 1.6]
     # other
     valid_num: 10
     dataset_type: cache
@@ -144,7 +132,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.5
-    roi_size: [192, 192, 96]
+    roi_size: [192, 160, 96]
 
   metrics:
     dice: # metric name

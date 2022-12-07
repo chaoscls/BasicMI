@@ -17,7 +17,7 @@ import torch.nn.functional as F
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
-from monai.transforms import Resize, CenterSpatialCrop
+from monai.transforms import Resize
 from monai.utils import (
     BlendMode,
     PytorchPadMode,
@@ -48,7 +48,6 @@ def sliding_window_inference(
     device: Union[torch.device, str, None] = None,
     progress: bool = False,
     roi_weight_map: Union[torch.Tensor, None] = None,
-    center_crop: bool = False,
     *args: Any,
     **kwargs: Any,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
@@ -140,9 +139,6 @@ def sliding_window_inference(
         pad_size.extend([half, diff - half])
     inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
     
-    if center_crop:
-        center = CenterSpatialCrop(roi_size=roi_size)(inputs[0]).unsqueeze(0)
-
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
     # Store all slices in list
@@ -180,13 +176,7 @@ def sliding_window_inference(
         ]
         window_data = torch.cat(
             [
-                convert_data_type(
-                torch.cat((inputs[win_slice], center), dim=1)
-                if center_crop 
-                else inputs[win_slice], 
-                torch.Tensor
-                )[0]
-                for win_slice in unravel_slice
+                convert_data_type(inputs[win_slice], torch.Tensor)[0] for win_slice in unravel_slice
             ]
         ).to(sw_device)
         seg_prob_out = predictor(window_data, *args, **kwargs)  # batched patch segmentation

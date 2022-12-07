@@ -116,7 +116,7 @@ with torch.no_grad():
         # start_time = time.time()
         for model in models:
             val_data['pred'] = sliding_window_inference(
-                test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=True).to('cpu')
+                test_inputs, roi_size, sw_batch_size, model, overlap=0.5).to('cpu')
             preds.append(from_engine(["pred"])([post_transforms(i) for i in decollate_batch(val_data)]))
         # consumed_time = str(datetime.timedelta(seconds=int(time.time() - start_time)))
         # print(consumed_time)

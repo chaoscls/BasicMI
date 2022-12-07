@@ -30,7 +30,6 @@ datasets:
     rotate_prob: 0.3
     rotate_range: 0.785
     # other
-    center_crop: false
     enlarge_ratio: 1
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset

@@ -105,7 +105,7 @@ with torch.no_grad():
         roi_size = (192, 192, 96)
         sw_batch_size = 8
         val_data["pred"] = sliding_window_inference(
-            test_inputs, roi_size, sw_batch_size, model, overlap=0.5, center_crop=False).to('cpu')
+            test_inputs, roi_size, sw_batch_size, model, overlap=0.5).to('cpu')
         
         del val_data["image"]
         torch.cuda.empty_cache()

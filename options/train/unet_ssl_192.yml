@@ -34,7 +34,6 @@ datasets:
     RandScaleIntensityd_prob: 0.5
     RandShiftIntensityd_prob: 0.5
     # other
-    center_crop: false
     enlarge_ratio: 1
     dataset_type: smart
     cache_rate: 1.0  # if use cache dataset
