@@ -1,0 +1,156 @@
+# general settings
+name: unet_baseline_RCS
+model_type: UNetModel
+num_gpu: auto
+manual_seed: 0
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: train
+    type: Artery18TrainDataset
+    dataroot: experiments/dataset/RCS/train
+    # transforms
+    a_min: -1200.0
+    a_max: 400.0
+    b_min: 0.0
+    b_max: 1.0
+    space: [1.0, 1.0, 1.5]
+    spatial_size: [192, 96, 160]
+    RandFlipd_prob: 0.2
+    # RandCropByPosNegLabeld
+    num_samples: 2
+    # RandRotate
+    rotate_prob: 0.3
+    rotate_range: 0.785
+    # other
+    enlarge_ratio: 1
+    dataset_type: cache
+    cache_rate: 1.0  # if use cache dataset
+    # data loader
+    use_shuffle: true
+    workers: 16
+    batch_size_per_gpu: 8
+    pin_memory: true
+    prefetch_mode: cuda
+
+  val:
+    name: validation
+    type: Artery18ValidationDataset
+    dataroot: experiments/dataset/RCS/val
+    # transforms
+    a_min: -1200.0
+    a_max: 400.0
+    b_min: 0.0
+    b_max: 1.0
+    space: [1.0, 1.0, 1.5]
+    # other
+    valid_num: ~
+    dataset_type: cache
+    cache_rate: 1.0  # if use cache dataset
+    # data loader
+    workers: 4
+    pin_memory: true
+    
+  val_train:
+    name: validation(train)
+    type: Artery18ValidationDataset
+    dataroot: experiments/dataset/RCS/train
+    # transforms
+    a_min: -1200.0
+    a_max: 400.0
+    b_min: 0.0
+    b_max: 1.0
+    space: [1.0, 1.0, 1.5]
+    # other
+    valid_num: 10
+    dataset_type: cache
+    cache_rate: 1.0  # if use cache dataset
+    # data loader
+    workers: 4
+    pin_memory: true
+
+
+# network structures
+network:
+  type: UNet
+  spatial_dims: 3
+  in_channels: 1
+  out_channels: 2
+  channels: [32, 64, 128, 256, 512]
+  strides: [2, 2, 2, 2]
+  num_res_units: 2
+  act: LEAKYRELU
+  norm: INSTANCE
+
+# path
+path:
+  pretrain_network: ~
+  param_key: params
+  strict_load: ~
+  # resume
+  resume_state: ~
+
+# training settings
+train:
+  optim:
+    type: Adam
+    lr: !!float 1e-3
+    weight_decay: !!float 1e-3
+    # weight_decay: 0
+
+  scheduler:
+    # type: MultiStepLR 
+    # milestones: [2500, 5000, 10000, 15000, 20000, 25000, 30000, 35000]
+    # gamma: 0.2
+
+    type: CosineAnnealingRestartLR 
+    periods: [10000, 10000, 10000, 10000, 10000]
+    restart_weights: [1.0, 0.5, 0.1, 0.5, 0.1]
+    eta_min: !!float 1e-8
+
+  total_iter: 50000
+  warmup_iter: 500
+  acc_step_num: 2
+
+  # losses
+  # dice loss
+  dice_opt:
+    type: DiceLoss
+    include_background: true
+    to_onehot_y: true
+    softmax: true
+    loss_weight: !!float 1
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 100
+  save_img: false
+  pbar: true
+
+  model_inferer:
+    sw_batch_size: 4
+    infer_overlap: 0.5
+    roi_size: [192, 96, 160]
+
+  metrics:
+    dice: # metric name
+      type: DiceMetric
+      to_onehot: 2
+      include_background: true
+      reduction: mean
+      get_not_nans: false
+
+# logging settings
+logger:
+  print_freq: 20
+  save_checkpoint_freq: !!float 500
+  use_tb_logger: true
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
+
+find_unused_parameters: true

@@ -88,10 +88,15 @@ class BaseModel():
     #     for k in net_g_ema_params.keys():
     #         net_g_ema_params[k].data.mul_(decay).add_(net_g_params[k].data, alpha=1 - decay)
 
-    def get_current_log(self):
-        log_dict = {key: val / self.acc_step_num for key, val in self.log_dict.items()}
+    def clear_log(self):
         self.log_dict.clear()
-        return log_dict
+
+    def get_current_log(self):
+        return self.log_dict
+    
+    def reduce_log(self):
+        for key in self.log_dict:
+            self.log_dict[key] /= self.acc_step_num
 
     def update_log(self, log_dict):
         for key, val in log_dict.items():

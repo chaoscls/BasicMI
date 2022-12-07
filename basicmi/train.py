@@ -177,15 +177,16 @@ def train_pipeline(root_path):
             data_timer.record()
 
             current_step += 1
+            current_iter += (current_step % acc_step_num == 0)
+            if current_iter > total_iters:
+                break
             
             model.feed_data(train_data)
             model.forward()
             
             if current_step % acc_step_num == 0:
-                current_iter += 1
-
-                if current_iter > total_iters:
-                    break
+                # reduce loss log
+                model.reduce_log()
                 # update learning rate
                 model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
                 # training
@@ -212,6 +213,7 @@ def train_pipeline(root_path):
                 if opt.get('val') is not None and (current_iter % opt['val']['val_freq'] == 0):
                     for val_loader in val_loaders:
                         model.validation(val_loader, current_iter, tb_logger, opt['val']['save_img'])
+                model.clear_log()
                 
                 iter_timer.start()
 
