@@ -17,9 +17,12 @@ datasets:
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
     spatial_size: [192, 160, 96]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     RandFlipd_prob: 0.2
     # RandCropByPosNegLabeld
-    num_samples: 4
+    num_samples: 2
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
@@ -30,7 +33,7 @@ datasets:
     # data loader
     use_shuffle: true
     workers: 16
-    batch_size_per_gpu: 10
+    batch_size_per_gpu: 4
     pin_memory: true
     prefetch_mode: cuda
 
@@ -44,6 +47,9 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
     valid_num: ~
     dataset_type: cache
@@ -62,8 +68,11 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
-    valid_num: 10
+    valid_num: 6
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -111,17 +120,18 @@ train:
 
   total_iter: 50000
   warmup_iter: 500
-  acc_step_num: 5
+  acc_step_num: 1
 
   # losses
-  # dice loss
-  dice_opt:
-    type: DiceLoss
-    include_background: true
-    to_onehot_y: true
-    softmax: true
-    loss_weight: !!float 1
-    reduction: mean
+  losses_opt:
+    # dice loss
+    dice_opt:
+      type: DiceLoss
+      include_background: true
+      to_onehot_y: true
+      softmax: true
+      loss_weight: !!float 1
+      reduction: mean
 
 # validation settings
 val:

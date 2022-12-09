@@ -7,7 +7,6 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 from basicmi.archs import build_network
-from basicmi.losses import build_loss
 from basicmi.metrics import build_metric
 from basicmi.models.base_model import BaseModel
 from basicmi.utils import get_root_logger
@@ -43,22 +42,6 @@ class SwinUNETRModel(BaseModel):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)
         self.best_acc = -1
-
-    def init_training_settings(self):
-        train_opt = self.opt['train']
-
-        self.net.train()
-
-        # ----------- define losses ----------- #
-        # dice loss
-        if train_opt.get('dice_opt'):
-            self.cri_dice = build_loss(train_opt['dice_opt']).to(self.device)
-        else:
-            self.cri_dice = None
-
-        # set up optimizers and schedulers
-        self.setup_optimizers()
-        self.setup_schedulers()
 
     def setup_optimizers(self):
         train_opt = self.opt['train']
@@ -101,15 +84,17 @@ class SwinUNETRModel(BaseModel):
         #     torchvision.utils.save_image(
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
-
+    
     def forward(self):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
+            losses = {}
             self.output = self.net(self.data)
-            losses = self.cri_dice(self.output, self.target, return_dict=True)
+            for criterion in self.criterions:
+                losses.update(criterion(self.output, self.target, return_dict=True))
 
-        for key, val in losses:
+        for key, val in losses.items():
             loss_total += val
             loss_dict['l_'+key] = val
 

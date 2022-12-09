@@ -1,13 +1,15 @@
 import os
 import time
-import torch
 from collections import OrderedDict
 from copy import deepcopy
+
+import torch
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from basicmi.models import lr_scheduler as lr_scheduler
 from basicmi.utils import get_root_logger
 from basicmi.utils.dist_util import master_only
+from basicmi.losses import build_loss
 
 
 class BaseModel():
@@ -25,8 +27,16 @@ class BaseModel():
     def feed_data(self, data):
         pass
 
-    def forward(self):
-        pass
+    def init_training_settings(self):
+        train_opt = self.opt['train']
+        self.net.train()
+        
+        # ----------- define losses ----------- #
+        self.criterions = [build_loss(loss_opt).to(self.device) for loss_opt in train_opt['losses_opt'].values()]
+
+        # set up optimizers and schedulers
+        self.setup_optimizers()
+        self.setup_schedulers()
 
     def optimize_parameters(self):
         if self.opt['amp']:

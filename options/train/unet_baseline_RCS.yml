@@ -16,7 +16,7 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.5]
-    spatial_size: [192, 128, 160]
+    spatial_size: [128, 128, 128]
     # CropForegroundd
     source_key: image
     margin: 0
@@ -31,12 +31,10 @@ datasets:
     enlarge_ratio: 1
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
-    # replace_rate: 1.0
-    # cache_num: 20
     # data loader
     use_shuffle: true
     workers: 16
-    batch_size_per_gpu: 4
+    batch_size_per_gpu: 2
     pin_memory: true
     prefetch_mode: cuda
 
@@ -75,7 +73,7 @@ datasets:
     source_key: image
     margin: 0
     # other
-    valid_num: 10
+    valid_num: 6
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -107,7 +105,7 @@ path:
 train:
   optim:
     type: Adam
-    lr: !!float 1e-4
+    lr: !!float 1e-5
     weight_decay: !!float 0
     # weight_decay: 0
 
@@ -117,23 +115,26 @@ train:
     # gamma: 0.2
 
     type: CosineAnnealingRestartLR 
-    periods: [10000, 10000, 10000, 10000, 10000]
-    restart_weights: [1.0, 0.5, 0.1, 0.5, 0.1]
-    eta_min: !!float 1e-8
+    periods: [5000]
+    restart_weights: [1.0]
+    # periods: [10000, 10000, 10000, 10000, 10000]
+    # restart_weights: [1.0, 0.5, 0.1, 0.5, 0.1]
+    eta_min: !!float 0
 
-  total_iter: 50000
+  total_iter: 5000
   warmup_iter: 500
-  acc_step_num: 2
+  acc_step_num: 1
 
   # losses
-  # dice loss
-  dice_opt:
-    type: DiceCELoss
-    include_background: true
-    to_onehot_y: true
-    softmax: true
-    loss_weight: !!float 1
-    reduction: mean
+  losses_opt:
+    # dice loss
+    dice_opt:
+      type: DiceCELoss
+      include_background: true
+      to_onehot_y: true
+      softmax: true
+      loss_weight: !!float 1
+      reduction: mean
 
 # validation settings
 val:
@@ -144,7 +145,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.5
-    roi_size: [192, 128, 160]
+    roi_size: [128, 128, 128]
 
   metrics:
     dice: # metric name

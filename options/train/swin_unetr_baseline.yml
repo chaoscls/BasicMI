@@ -15,16 +15,12 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
-    roi_x: 192
-    roi_y: 192
-    roi_z: 96
+    space: [1.0, 1.0, 1.6]
+    spatial_size: [192, 160, 96]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     RandFlipd_prob: 0.2
-    # RandRotate90d_prob: 0.2
-    # RandScaleIntensityd_prob: 0.1
-    # RandShiftIntensityd_prob: 0.1
     # RandCropByPosNegLabeld
     num_samples: 1
     # RandRotate
@@ -50,9 +46,10 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
+    space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
     valid_num: ~
     dataset_type: cache
@@ -70,11 +67,12 @@ datasets:
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space_x: 1.5
-    space_y: 1.5
-    space_z: 2.0
+    space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
-    valid_num: 10
+    valid_num: 6
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -85,7 +83,7 @@ datasets:
 # network structures
 network:
   type: SwinUNETR
-  img_size: [192, 192, 96]
+  img_size: [192, 160, 96]
   spatial_dims: 3
   in_channels: 1
   out_channels: 19
@@ -122,14 +120,15 @@ train:
   acc_step_num: 8
 
   # losses
-  # dice loss
-  dice_opt:
-    type: DiceLoss
-    include_background: true
-    to_onehot_y: true
-    softmax: true
-    loss_weight: !!float 1
-    reduction: mean
+  losses_opt:
+    # dice loss
+    dice_opt:
+      type: DiceLoss
+      include_background: true
+      to_onehot_y: true
+      softmax: true
+      loss_weight: !!float 1
+      reduction: mean
 
 # validation settings
 val:
@@ -140,7 +139,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.5
-    roi_size: [192, 192, 96]
+    roi_size: [192, 160, 96]
 
   metrics:
     dice: # metric name

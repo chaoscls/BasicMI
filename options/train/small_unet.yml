@@ -17,6 +17,9 @@ datasets:
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
     spatial_size: [192, 160, 96]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     RandFlipd_prob: 0.2
     # RandCropByPosNegLabeld
     num_samples: 2
@@ -44,6 +47,9 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
     valid_num: ~
     dataset_type: cache
@@ -62,6 +68,9 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
     valid_num: 10
     dataset_type: cache
@@ -114,14 +123,15 @@ train:
   acc_step_num: 1
 
   # losses
-  # dice loss
-  dice_opt:
-    type: DiceLoss
-    include_background: true
-    to_onehot_y: true
-    softmax: true
-    loss_weight: !!float 1
-    reduction: mean
+  losses_opt:
+    # dice loss
+    dice_opt:
+      type: DiceLoss
+      include_background: true
+      to_onehot_y: true
+      softmax: true
+      loss_weight: !!float 1
+      reduction: mean
 
 # validation settings
 val:
