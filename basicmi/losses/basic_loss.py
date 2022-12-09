@@ -116,7 +116,7 @@ class DiceLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False):
         """
         Args:
             input: the shape should be BNH[WD], where N is the number of classes.
@@ -203,7 +203,11 @@ class DiceLoss(_Loss):
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
-        return f * self.loss_weight
+        if return_dict:
+            losses = {'dice': f * self.loss_weight}
+            return losses
+        else:
+            return f * self.loss_weight
 
 
 @LOSS_REGISTRY.register()
@@ -312,7 +316,7 @@ class DiceCELoss(_Loss):
         target = target.long()
         return self.cross_entropy(input, target)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -330,7 +334,11 @@ class DiceCELoss(_Loss):
         ce_loss = self.ce(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
 
-        return total_loss * self.loss_weight, dice_loss, ce_loss
+        if return_dict:
+            losses = {'dice_ce': total_loss * self.loss_weight, 'dice': dice_loss, 'ce': ce_loss}
+            return losses
+        else:
+            return total_loss * self.loss_weight, dice_loss, ce_loss
 
 @LOSS_REGISTRY.register()
 class BCELoss(nn.Module):
@@ -354,4 +362,4 @@ class BCELoss(nn.Module):
             target (Tensor): of shape (N, C, H, W). Ground truth tensor.
             weight (Tensor, optional): of shape (N, C, H, W). Element-wise weights. Default: None.
         """
-        return self.loss_weight * self.loss_fun(pred, target)
+        return {'ce': self.loss_weight * self.loss_fun(pred, target)}

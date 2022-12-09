@@ -106,14 +106,12 @@ class UNetModel(BaseModel):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
-            # optimize net
             self.output = self.net(self.data)
+            losses = self.cri_dice(self.output, self.target, return_dict=True)
 
-            # dice loss
-            dice_loss = self.cri_dice(self.output, self.target)
-
-        loss_total += dice_loss
-        loss_dict['l_dice'] = dice_loss
+        for key, val in losses.items():
+            loss_total += val
+            loss_dict['l_'+key] = val
 
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()

@@ -29,7 +29,7 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                transforms.CropForegroundd(keys=["image", "label"], source_key="label", margin=10),
+                transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
                 transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta=False),
                 transforms.RandRotated(
                     keys=["image", "label"],
@@ -61,11 +61,11 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
         if opt["dataset_type"] == 'normal':
             self.dataset = data.Dataset(data=files, transform=transform)
         elif opt["dataset_type"] == 'cache':
-            self.dataset = data.CacheDataset(data=files, transform=transform, cache_num=max(16, len(files)), cache_rate=1.0, num_workers=opt["workers"])
+            self.dataset = data.CacheDataset(data=files, transform=transform, cache_num=max(16, len(files)), cache_rate=opt["cache_rate"], num_workers=opt["workers"])
         elif opt["dataset_type"] == 'smart':
-            self.dataset = data.SmartCacheDataset(data=self.files, transform=transform, replace_rate=opt["replace_rate"], cache_num=opt["cache_num"])
+            self.dataset = data.SmartCacheDataset(data=files, transform=transform, replace_rate=opt["replace_rate"], cache_num=opt["cache_num"])
         elif opt["dataset_type"] == 'persist':
-            self.dataset = data.PersistentDataset(data=files, transform=transform, cache_dir='experiments/dataset/.train_cache')
+            self.dataset = data.PersistentDataset(data=files, transform=transform, cache_dir="experiments/dataset/.train_cache")
 
     def __getitem__(self, index):
         return self.dataset[index]
@@ -98,7 +98,7 @@ class Artery18ValidationDataset(torch.utils.data.Dataset):
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                transforms.CropForegroundd(keys=["image", "label"], source_key="label", margin=10),
+                transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
             ]
         )
 

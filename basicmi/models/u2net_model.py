@@ -110,13 +110,17 @@ class U2NETModel(BaseModel):
             self.output = self.net(self.data)
 
             # dice loss
-            losses = []
-            for output in self.outputs:
-                losses.append(self.cri_dice(output, self.target))
+            dice_loss = self.cri_dice(self.output, self.target)
+            # losses = []
+            # for output in self.outputs:
+            #     losses.append(self.cri_dice(output, self.target))
 
-        loss_total += sum(losses)
-        loss_dict['l_dice'] = losses[0]
-        loss_dict.update({f'l_dice{i}': dice_loss for i, dice_loss in enumerate(losses[1:])})
+        # loss_total += sum(losses)
+        # loss_dict['l_dice'] = losses[0]
+        # loss_dict.update({f'l_dice{i}': dice_loss for i, dice_loss in enumerate(losses[1:])})
+
+        loss_total += dice_loss
+        loss_dict['l_dice'] = dice_loss
 
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()
