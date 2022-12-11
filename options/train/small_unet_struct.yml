@@ -1,5 +1,5 @@
 # general settings
-name: small_unet_ssim
+name: small_unet_struct
 model_type: UNetModel
 num_gpu: auto
 manual_seed: 0
@@ -134,7 +134,7 @@ train:
       reduction: mean
 
     ssim_opt:
-      type: SSIMLoss
+      type: StructureLoss
       win_size: 7
       spatial_dims: 3
       to_onehot_y: true

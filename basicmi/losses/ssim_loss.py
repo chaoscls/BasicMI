@@ -36,13 +36,14 @@ class SSIMLoss(nn.Module):
         similarity." IEEE transactions on image processing 13.4 (2004): 600-612.
     """
 
-    def __init__(self, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2, to_onehot_y: bool = True):
+    def __init__(self, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2, sigmoid: bool = True, to_onehot_y: bool = True):
         """
         Args:
             win_size: gaussian weighting window size
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
             spatial_dims: if 2, input shape is expected to be (B,C,H,W). if 3, it is expected to be (B,C,H,W,D)
+            sigmoid: if True, apply a sigmoid function to the prediction.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
         """
         super().__init__()
@@ -53,6 +54,7 @@ class SSIMLoss(nn.Module):
             "w", torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
         )
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
+        self.sigmoid = sigmoid
         self.to_onehot_y = to_onehot_y
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False):
@@ -98,26 +100,33 @@ class SSIMLoss(nn.Module):
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 y = one_hot(y, num_classes=n_pred_ch)
+        # accelerate?
+        _,_,H,W,D = x.shape
+        x, y = x.reshape(-1,1,H,W,D), y.reshape(-1,1,H,W,D)
+        # only calculate effective region
+        x = x * y
         if data_range == None:
             data_range = y.max().unsqueeze(0)
-        if x.shape[1] > 1:  # handling multiple channels (C>1)
-            if x.shape[1] != y.shape[1]:
-                raise ValueError(
-                    f"x and y should have the same number of channels, "
-                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
-                )
-            losses = torch.stack(
-                [
-                    SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
-                    )
-                    for i in range(x.shape[1])
-                ]
-            )
-            channel_wise_loss: torch.Tensor = losses.mean()
-            if return_dict:
-                return {"ssim": channel_wise_loss}
-            return channel_wise_loss
+        if self.sigmoid:
+            x = torch.sigmoid(x)
+        # if x.shape[1] > 1:  # handling multiple channels (C>1)
+        #     if x.shape[1] != y.shape[1]:
+        #         raise ValueError(
+        #             f"x and y should have the same number of channels, "
+        #             f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+        #         )
+        #     losses = torch.stack(
+        #         [
+        #             SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
+        #                 x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
+        #             )
+        #             for i in range(x.shape[1])
+        #         ]
+        #     )
+        #     channel_wise_loss: torch.Tensor = losses.mean()
+        #     if return_dict:
+        #         return {"ssim": channel_wise_loss}
+        #     return channel_wise_loss
 
         data_range = data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
@@ -141,4 +150,86 @@ class SSIMLoss(nn.Module):
         loss: torch.Tensor = 1 - ssim_value.mean()
         if return_dict:
             return {"ssim": loss}
+        return loss
+
+@LOSS_REGISTRY.register()
+class StructureLoss(nn.Module):
+
+    def __init__(self, win_size: int = 7, k: float = 0.03, spatial_dims: int = 2, sigmoid: bool = True, to_onehot_y: bool = True):
+        """
+        Args:
+            win_size: gaussian weighting window size
+            k1: stability constant used in the luminance denominator
+            k2: stability constant used in the contrast denominator
+            spatial_dims: if 2, input shape is expected to be (B,C,H,W). if 3, it is expected to be (B,C,H,W,D)
+            sigmoid: if True, apply a sigmoid function to the prediction.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        """
+        super().__init__()
+        self.win_size = win_size
+        self.k = k
+        self.spatial_dims = spatial_dims
+        self.register_buffer(
+            "w", torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
+        )
+        self.cov_norm = (win_size**2) / (win_size**2 - 1)
+        self.sigmoid = sigmoid
+        self.to_onehot_y = to_onehot_y
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False):
+        
+        n_pred_ch = x.shape[1]
+        if self.to_onehot_y:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                y = one_hot(y, num_classes=n_pred_ch)
+        # accelerate?
+        _,_,H,W,D = x.shape
+        x, y = x.reshape(-1,1,H,W,D), y.reshape(-1,1,H,W,D)
+        # only calculate effective region
+        x = x * y
+        if data_range == None:
+            data_range = y.max().unsqueeze(0)
+        if self.sigmoid:
+            x = torch.sigmoid(x)
+        # if x.shape[1] > 1:  # handling multiple channels (C>1)
+        #     if x.shape[1] != y.shape[1]:
+        #         raise ValueError(
+        #             f"x and y should have the same number of channels, "
+        #             f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+        #         )
+        #     losses = torch.stack(
+        #         [
+        #             StructureLoss(self.win_size, self.k, self.spatial_dims)(
+        #                 x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
+        #             )
+        #             for i in range(x.shape[1])
+        #         ]
+        #     )
+        #     channel_wise_loss: torch.Tensor = losses.mean()
+        #     if return_dict:
+        #         return {"ssim": channel_wise_loss}
+        #     return channel_wise_loss
+
+        data_range = data_range[(None,) * (self.spatial_dims + 2)]
+        # determine whether to work with 2D convolution or 3D
+        conv = getattr(F, f"conv{self.spatial_dims}d")
+        w = convert_to_dst_type(src=self.w, dst=x)[0]
+
+        c = (self.k * data_range) ** 2 / 2
+        ux = conv(x, w)  # mu_x
+        uy = conv(y, w)  # mu_y
+        uxx = conv(x * x, w)  # mu_x^2
+        uyy = conv(y * y, w)  # mu_y^2
+        uxy = conv(x * y, w)  # mu_xy
+        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
+        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
+        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
+
+        s_value = (vxy + c) / (vx * vy + c)
+
+        loss: torch.Tensor = 1 - s_value.mean()
+        if return_dict:
+            return {"struct": loss}
         return loss

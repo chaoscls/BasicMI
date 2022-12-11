@@ -8,11 +8,11 @@ manual_seed: 0
 datasets:
   train:
     name: train
-    type: Artery18TrainDataset
+    type: RCSTrainDataset
     dataroot: experiments/dataset/RCS/train
     # transforms
-    a_min: -1200.0
-    a_max: 400.0
+    a_min: -500.0
+    a_max: 800.0
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.5]
@@ -29,8 +29,10 @@ datasets:
     rotate_range: 0.785
     # other
     enlarge_ratio: 1
-    dataset_type: cache
+    dataset_type: smart
     cache_rate: 1.0  # if use cache dataset
+    replace_rate: 1.0
+    cache_num: 8
     # data loader
     use_shuffle: true
     workers: 16
@@ -40,11 +42,11 @@ datasets:
 
   val:
     name: validation
-    type: Artery18ValidationDataset
+    type: RCSValidationDataset
     dataroot: experiments/dataset/RCS/val
     # transforms
-    a_min: -1200.0
-    a_max: 400.0
+    a_min: -500.0
+    a_max: 800.0
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.5]
@@ -61,11 +63,11 @@ datasets:
     
   val_train:
     name: validation(train)
-    type: Artery18ValidationDataset
+    type: RCSValidationDataset
     dataroot: experiments/dataset/RCS/train
     # transforms
-    a_min: -1200.0
-    a_max: 400.0
+    a_min: -500.0
+    a_max: 800.0
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.5]
@@ -106,7 +108,7 @@ train:
   optim:
     type: Adam
     lr: !!float 1e-5
-    weight_decay: !!float 0
+    weight_decay: !!float 1e-4
     # weight_decay: 0
 
   scheduler:

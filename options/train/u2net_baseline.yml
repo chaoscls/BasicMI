@@ -17,6 +17,9 @@ datasets:
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
     spatial_size: [192, 160, 96]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     RandFlipd_prob: 0.2
     # RandCropByPosNegLabeld
     num_samples: 1
@@ -44,6 +47,9 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
     valid_num: ~
     dataset_type: cache
@@ -62,8 +68,11 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
+    # CropForegroundd
+    source_key: label
+    margin: 10
     # other
-    valid_num: 10
+    valid_num: 6
     dataset_type: cache
     cache_rate: 1.0  # if use cache dataset
     # data loader
@@ -99,23 +108,24 @@ train:
     # gamma: 0.5
 
     type: CosineAnnealingRestartLR 
-    periods: [10000, 10000, 10000, 10000, 10000]
-    restart_weights: [1.0, 0.5, 0.1, 0.5, 0.1]
-    eta_min: !!float 1e-8
+    periods: [10000, 10000, 10000, 5000, 10000, 10000, 5000]
+    restart_weights: [1.0, 0.5, 0.1, 0.01, 0.5, 0.1, 0.01]
+    eta_min: !!float 0
 
-  total_iter: 50000
+  total_iter: 60000
   warmup_iter: 500
   acc_step_num: 4
 
   # losses
-  # dice loss
-  dice_opt:
-    type: DiceLoss
-    include_background: true
-    to_onehot_y: true
-    softmax: true
-    loss_weight: !!float 1
-    reduction: mean
+  losses_opt:
+    # dice loss
+    dice_opt:
+      type: DiceLoss
+      include_background: true
+      to_onehot_y: true
+      softmax: true
+      loss_weight: !!float 1
+      reduction: mean
 
 # validation settings
 val:
