@@ -57,7 +57,7 @@ class SSIMLoss(nn.Module):
         self.sigmoid = sigmoid
         self.to_onehot_y = to_onehot_y
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False):
+    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False, suffix=""):
         """
         Args:
             x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D and pseudo-3D data,
@@ -149,7 +149,7 @@ class SSIMLoss(nn.Module):
         ssim_value = numerator / denom
         loss: torch.Tensor = 1 - ssim_value.mean()
         if return_dict:
-            return {"ssim": loss}
+            return {"ssim"+suffix: loss}
         return loss
 
 @LOSS_REGISTRY.register()
@@ -176,7 +176,7 @@ class StructureLoss(nn.Module):
         self.sigmoid = sigmoid
         self.to_onehot_y = to_onehot_y
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False):
+    def forward(self, x: torch.Tensor, y: torch.Tensor, data_range = None, return_dict = False, suffix=""):
         
         n_pred_ch = x.shape[1]
         if self.to_onehot_y:
@@ -231,5 +231,5 @@ class StructureLoss(nn.Module):
 
         loss: torch.Tensor = 1 - s_value.mean()
         if return_dict:
-            return {"struct": loss}
+            return {"struct"+suffix: loss}
         return loss

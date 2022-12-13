@@ -15,11 +15,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class U2NETModel(BaseModel):
+class UNetRefineModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(U2NETModel, self).__init__(opt)
+        super(UNetRefineModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -35,9 +35,9 @@ class U2NETModel(BaseModel):
 
         if self.is_train:
             self.init_training_settings()
-
+        
         self.init_val_settings()
-
+    
     def init_val_settings(self):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)
@@ -84,18 +84,18 @@ class U2NETModel(BaseModel):
         #     torchvision.utils.save_image(
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
-
+    
     def forward(self):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
             losses = {}
-            outputs = self.net(self.data)
-            for i, output in enumerate(outputs[1:]):
+            outputs = self.net(self.data, return_mid=True)
+            for i, output in enumerate(outputs[:-1]):
                 for criterion in self.criterions:
                     losses.update(criterion(output, self.target, return_dict=True, suffix=str(i+1)))
             for criterion in self.criterions:
-                losses.update(criterion(outputs[0], self.target, return_dict=True))
+                losses.update(criterion(outputs[-1], self.target, return_dict=True))
 
         for key, val in losses.items():
             loss_total += val

@@ -528,5 +528,5 @@ class U2NETP(nn.Module):
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
 
         # return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
-        # return (d0, d1, d2, d3, d4, d5, d6) if self.training else d0
-        return d0
+        return (d0, d1, d2, d3, d4, d5, d6) if self.training else d0
+        # return d0

@@ -1,6 +1,6 @@
 # general settings
-name: u2net_baseline
-model_type: U2NETModel
+name: dsunet_256
+model_type: DSUNETModel
 num_gpu: auto
 manual_seed: 0
 
@@ -16,7 +16,7 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
-    spatial_size: [192, 160, 96]
+    spatial_size: [256, 256, 192]
     # CropForegroundd
     source_key: label
     margin: 10
@@ -28,12 +28,15 @@ datasets:
     rotate_range: 0.785
     # other
     enlarge_ratio: 1
-    dataset_type: cache
-    cache_rate: 1.0  # if use cache dataset
+    dataset_type: smart
+    replace_rate: 1.0
+    cache_num: 20
+    # dataset_type: cache
+    # cache_rate: 1.0  # if use cache dataset
     # data loader
     use_shuffle: true
     workers: 16
-    batch_size_per_gpu: 4
+    batch_size_per_gpu: 2
     pin_memory: true
     prefetch_mode: cuda
 
@@ -82,9 +85,15 @@ datasets:
 
 # network structures
 network:
-  type: U2NETP
+  type: DSUNet
+  spatial_dims: 3
   in_channels: 1
   out_channels: 19
+  channels: [32, 64, 128, 256, 512]
+  strides: [2, 2, 2, 2]
+  num_res_units: 2
+  act: LEAKYRELU
+  norm: INSTANCE
 
 # path
 path:
@@ -98,23 +107,23 @@ path:
 train:
   optim:
     type: Adam
-    lr: !!float 5e-4
-    weight_decay: !!float 1e-5
+    lr: !!float 1e-3
+    weight_decay: !!float 1e-3
     # weight_decay: 0
 
   scheduler:
     # type: MultiStepLR 
-    # milestones: [4000, 8000, 12000, 16000]
-    # gamma: 0.5
+    # milestones: [2500, 5000, 10000, 15000, 20000, 25000, 30000, 35000]
+    # gamma: 0.2
 
     type: CosineAnnealingRestartLR 
     periods: [10000, 10000, 10000, 5000, 10000, 10000, 5000]
     restart_weights: [1.0, 0.5, 0.1, 0.01, 0.5, 0.1, 0.01]
-    eta_min: !!float 0
+    eta_min: !!float 1e-8
 
   total_iter: 60000
   warmup_iter: 500
-  acc_step_num: 4
+  acc_step_num: 2
 
   # losses
   losses_opt:
@@ -136,7 +145,7 @@ val:
   model_inferer:
     sw_batch_size: 2
     infer_overlap: 0.5
-    roi_size: [192, 160, 96]
+    roi_size: [256, 256, 192]
 
   metrics:
     dice: # metric name

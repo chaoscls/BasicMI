@@ -116,7 +116,7 @@ class DiceLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False, suffix=""):
         """
         Args:
             input: the shape should be BNH[WD], where N is the number of classes.
@@ -204,7 +204,7 @@ class DiceLoss(_Loss):
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         if return_dict:
-            losses = {'dice': f * self.loss_weight}
+            losses = {'dice'+suffix: f * self.loss_weight}
             return losses
         else:
             return f * self.loss_weight
@@ -316,7 +316,7 @@ class DiceCELoss(_Loss):
         target = target.long()
         return self.cross_entropy(input, target)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, return_dict=False, suffix=""):
         """
         Args:
             input: the shape should be BNH[WD].
@@ -335,31 +335,7 @@ class DiceCELoss(_Loss):
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
 
         if return_dict:
-            losses = {'dice_ce': total_loss * self.loss_weight, 'dice': dice_loss, 'ce': ce_loss}
+            losses = {'dice_ce'+suffix: total_loss * self.loss_weight, 'dice'+suffix: dice_loss, 'ce'+suffix: ce_loss}
             return losses
         else:
             return total_loss * self.loss_weight, dice_loss, ce_loss
-
-@LOSS_REGISTRY.register()
-class BCELoss(nn.Module):
-    """
-    Args:
-        loss_weight (float): Loss weight for L1 loss. Default: 1.0.
-        reduction (str): Specifies the reduction to apply to the output.
-            Supported choices are 'none' | 'mean' | 'sum'. Default: 'mean'.
-    """
-
-    def __init__(self, loss_weight=1.0, **kwargs):
-        super(BCELoss, self).__init__()
-
-        self.loss_weight = loss_weight
-        self.loss_fun = nn.BCELoss(**kwargs)
-
-    def forward(self, pred, target):
-        """
-        Args:
-            pred (Tensor): of shape (N, C, H, W). Predicted tensor.
-            target (Tensor): of shape (N, C, H, W). Ground truth tensor.
-            weight (Tensor, optional): of shape (N, C, H, W). Element-wise weights. Default: None.
-        """
-        return {'ce': self.loss_weight * self.loss_fun(pred, target)}

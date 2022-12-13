@@ -1,6 +1,6 @@
 # general settings
 name: test
-model_type: UNetModel
+model_type: DSUNETModel
 num_gpu: auto
 manual_seed: 0
 
@@ -16,7 +16,7 @@ datasets:
     b_min: 0.0
     b_max: 1.0
     space: [1.0, 1.0, 1.6]
-    spatial_size: [192, 160, 96]
+    spatial_size: [256, 256, 192]
     # CropForegroundd
     source_key: label
     margin: 10
@@ -32,7 +32,7 @@ datasets:
     # data loader
     use_shuffle: true
     workers: 0
-    batch_size_per_gpu: 1
+    batch_size_per_gpu: 2
     pin_memory: true
     prefetch_mode: cuda
 
@@ -81,22 +81,15 @@ datasets:
 
 # network structures
 network:
-  type: UNet
+  type: DSUNet
   spatial_dims: 3
   in_channels: 1
   out_channels: 19
-  channels: [16, 32, 32, 32, 32]
+  channels: [32, 64, 128, 256, 512]
   strides: [2, 2, 2, 2]
   num_res_units: 2
   act: LEAKYRELU
   norm: INSTANCE
-
-  # type: SwinUNETR
-  # img_size: [192, 160, 96]
-  # spatial_dims: 3
-  # in_channels: 1
-  # out_channels: 19
-  # feature_size: 48
 
 # path
 path:
@@ -127,7 +120,7 @@ train:
 
   total_iter: 100
   warmup_iter: 10
-  bs: 1
+  acc_step_num: 1
 
   # losses
   losses_opt:
@@ -140,11 +133,6 @@ train:
       loss_weight: !!float 1
       reduction: mean
 
-    ssim_opt:
-      type: SSIMLoss
-      spatial_dims: 3
-      to_onehot_y: true
-    
 # validation settings
 val:
   val_freq: !!float 5
@@ -154,7 +142,7 @@ val:
   model_inferer:
     sw_batch_size: 4
     infer_overlap: 0.2
-    roi_size: [192, 160, 96]
+    roi_size: [256, 256, 192]
 
   metrics:
     dice: # metric name

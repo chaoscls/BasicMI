@@ -15,11 +15,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class U2NETModel(BaseModel):
+class DSUNETModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(U2NETModel, self).__init__(opt)
+        super(DSUNETModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -89,13 +89,14 @@ class U2NETModel(BaseModel):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
-            losses = {}
-            outputs = self.net(self.data)
-            for i, output in enumerate(outputs[1:]):
-                for criterion in self.criterions:
-                    losses.update(criterion(output, self.target, return_dict=True, suffix=str(i+1)))
-            for criterion in self.criterions:
-                losses.update(criterion(outputs[0], self.target, return_dict=True))
+            losses = self.net(self.data, self.target, self.criterions)
+            # losses = {}
+            # outputs = self.net(self.data)[::-1]
+            # for i, output in enumerate(outputs[1:]):
+            #     for criterion in self.criterions:
+            #         losses.update(criterion(output, self.target, return_dict=True, suffix=str(i+1)))
+            # for criterion in self.criterions:
+            #     losses.update(criterion(outputs[0], self.target, return_dict=True))
 
         for key, val in losses.items():
             loss_total += val

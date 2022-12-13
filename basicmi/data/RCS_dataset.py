@@ -22,24 +22,24 @@ class RCSTrainDataset(torch.utils.data.Dataset):
             [
                 transforms.LoadImaged(keys=["image", "label"]),
                 transforms.EnsureChannelFirstd(keys=["image", "label"]),
-                # transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
-                # transforms.Spacingd(
-                #     keys=["image", "label"], pixdim=opt["space"], mode=("bilinear", "nearest")
-                # ),
+                transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
+                transforms.Spacingd(
+                    keys=["image", "label"], pixdim=opt["space"], mode=("bilinear", "nearest")
+                ),
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                # transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
+                transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
                 transforms.EnsureTyped(keys=["image", "label"], device='cuda', track_meta=False),
-                # transforms.RandRotated(
-                #     keys=["image", "label"],
-                #     range_x=opt['rotate_range'],
-                #     range_y=opt['rotate_range'],
-                #     range_z=opt['rotate_range'],
-                #     prob=opt["rotate_prob"],
-                #     mode=["bilinear", "nearest"], 
-                #     padding_mode="zeros",
-                # ),
+                transforms.RandRotated(
+                    keys=["image", "label"],
+                    range_x=opt['rotate_range'],
+                    range_y=opt['rotate_range'],
+                    range_z=opt['rotate_range'],
+                    prob=opt["rotate_prob"],
+                    mode=["bilinear", "nearest"], 
+                    padding_mode="zeros",
+                ),
                 transforms.RandCropByPosNegLabeld(
                     keys=["image", "label"],
                     label_key="label",
@@ -51,10 +51,10 @@ class RCSTrainDataset(torch.utils.data.Dataset):
                     image_threshold=0,
                     allow_smaller=True,
                 ),
-                # transforms.ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=opt["spatial_size"]),
-                # transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=0),
-                # transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=1),
-                # transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=2),
+                transforms.ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=opt["spatial_size"]),
+                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=0),
+                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=1),
+                transforms.RandFlipd(keys=["image", "label"], prob=opt["RandFlipd_prob"], spatial_axis=2),
             ]
         )
 
@@ -91,14 +91,14 @@ class RCSValidationDataset(torch.utils.data.Dataset):
             [
                 transforms.LoadImaged(keys=["image", "label"]),
                 transforms.EnsureChannelFirstd(keys=["image", "label"]),
-                # transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
-                # transforms.Spacingd(
-                #     keys=["image", "label"], pixdim=opt["space"], mode=("bilinear", "nearest")
-                # ),
+                transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
+                transforms.Spacingd(
+                    keys=["image", "label"], pixdim=opt["space"], mode=("bilinear", "nearest")
+                ),
                 transforms.ScaleIntensityRanged(
                     keys=["image"], a_min=opt["a_min"], a_max=opt["a_max"], b_min=opt["b_min"], b_max=opt["b_max"], clip=True
                 ),
-                # transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
+                transforms.CropForegroundd(keys=["image", "label"], source_key=opt.get("source_key", "image"), margin=opt.get("margin", 0)),
             ]
         )
 
