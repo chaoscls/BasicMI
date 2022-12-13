@@ -15,11 +15,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class DSUNETModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(DSUNETModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -35,9 +35,9 @@ class UNetModel(BaseModel):
 
         if self.is_train:
             self.init_training_settings()
-        
+
         self.init_val_settings()
-    
+
     def init_val_settings(self):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)
@@ -84,15 +84,19 @@ class UNetModel(BaseModel):
         #     torchvision.utils.save_image(
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
-    
+
     def forward(self):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
-            losses = {}
-            self.output = self.net(self.data)
-            for criterion in self.criterions:
-                losses.update(criterion(self.output, self.target, return_dict=True))
+            losses = self.net(self.data, self.target, self.criterions)
+            # losses = {}
+            # outputs = self.net(self.data)[::-1]
+            # for i, output in enumerate(outputs[1:]):
+            #     for criterion in self.criterions:
+            #         losses.update(criterion(output, self.target, return_dict=True, suffix=str(i+1)))
+            # for criterion in self.criterions:
+            #     losses.update(criterion(outputs[0], self.target, return_dict=True))
 
         for key, val in losses.items():
             loss_total += val

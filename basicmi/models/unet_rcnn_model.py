@@ -7,6 +7,7 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 from basicmi.archs import build_network
+from basicmi.losses import build_loss
 from basicmi.metrics import build_metric
 from basicmi.models.base_model import BaseModel
 from basicmi.utils import get_root_logger
@@ -15,11 +16,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class UNetRCNNModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(UNetRCNNModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -42,6 +43,24 @@ class UNetModel(BaseModel):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)
         self.best_acc = -1
+
+    def init_training_settings(self):
+        train_opt = self.opt['train']
+
+        self.bs = train_opt['bs']
+
+        self.net.train()
+
+        # ----------- define losses ----------- #
+        # dice loss
+        if train_opt.get('dice_opt'):
+            self.cri_dice = build_loss(train_opt['dice_opt']).to(self.device)
+        else:
+            self.cri_dice = None
+        
+        # set up optimizers and schedulers
+        self.setup_optimizers()
+        self.setup_schedulers()
 
     def setup_optimizers(self):
         train_opt = self.opt['train']
@@ -84,27 +103,52 @@ class UNetModel(BaseModel):
         #     torchvision.utils.save_image(
         #         self.data, f'tmp/lq/lq{self.idx}.png', nrow=4, padding=2, normalize=True, range=(-1, 1))
         #     self.idx = self.idx + 1
-    
-    def forward(self):
+
+    def optimize_parameters(self, current_iter):
         loss_total = 0
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
+            # # optimize net
+            # self.output = self.net(self.data)
+
+            # # dice loss
+            # dice_loss = self.cri_dice(self.output, self.target)
+
+            artery_target = torch.zeros_like(self.target).to(self.device)
+            artery_target[self.target > 0] = 1
+
             losses = {}
-            self.output = self.net(self.data)
-            for criterion in self.criterions:
-                losses.update(criterion(self.output, self.target, return_dict=True))
+            for i in range(0,self.data.shape[0],self.bs):
+                
+                self.outputs = self.net(self.data[i:i+self.bs], True)
+                for j, output in enumerate(self.outputs):
+                    losses[f'l_dice{j}'] = self.cri_dice(output[:,1:,...], self.target[i:i+self.bs]) if losses.get(f'l_dice{j}', None) == None else losses[f'l_dice{j}'] + self.cri_dice(output[:,1:,...], self.target[i:i+self.bs])
 
-        for key, val in losses.items():
-            loss_total += val
-            loss_dict['l_'+key] = val
+                    # print("=>:", output[:,1:,...].shape, self.target[i:i+self.bs].shape, self.cri_dice(output[:,1:,...], self.target[i:i+self.bs]), self.dice_metric(output[:,1:,...], self.target[i:i+self.bs]))
 
+                    losses[f'l_artery_dice{j}'] = self.cri_dice(output[:,:2,...], artery_target[i:i+self.bs]) if losses.get(f'l_artery_dice{j}', None) == None else losses[f'l_artery_dice{j}'] + self.cri_dice(output[:,:2,...], artery_target[i:i+self.bs])
+
+                    # print("=>", output[:,:2,...].shape, artery_target[i:i+self.bs].shape, self.cri_dice(output[:,:2,...], artery_target[i:i+self.bs]), self.dice_metric(output[:,:2,...], artery_target[i:i+self.bs]))
+                # print()
+        
+        for key in losses:
+            # print(key, losses[key], self.data.shape[0], self.bs, self.data.shape[0] // self.bs)
+            losses[key] /= self.data.shape[0] // self.bs
+            # print(key, losses[key])
+            loss_total += losses[key] if 'artery' not in key else losses[key] * 0.1
+
+        loss_dict.update(losses)
+        
+        self.optimizer.zero_grad()
         if self.opt['amp']:
             self.scaler.scale(loss_total).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
         else:
             loss_total.backward()
+            self.optimizer.step()
 
-        log_dict = self.reduce_loss_dict(loss_dict)
-        self.update_log(log_dict)
+        self.log_dict = self.reduce_loss_dict(loss_dict)
 
     def test(self):
         self.net.eval()
@@ -139,7 +183,7 @@ class UNetModel(BaseModel):
 
         if use_pbar:
             pbar = tqdm(total=len(dataloader), unit='image')
-
+        
         if save_img:
             prediction_folder = osp.join(self.opt['path']['visualization'], dataset_name, f'preds_{current_iter}')
             os.makedirs(prediction_folder, exist_ok=True)
@@ -159,8 +203,8 @@ class UNetModel(BaseModel):
             if with_metrics:
                 # calculate metrics
                 # dice metric
-                self.metric_results['dice'] += self.dice_metric(self.output, self.target).item()
-
+                self.metric_results['dice'] += self.dice_metric(self.output[:,1:,...], self.target).item()
+            
             # tentative for out of GPU memory
             del self.data
             del self.output
@@ -202,3 +246,29 @@ class UNetModel(BaseModel):
         if tb_logger:
             for metric, value in self.metric_results.items():
                 tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
+
+    def resume_training(self, resume_state):
+        """Reload the optimizers, schedulers and models for resumed training.
+
+        Args:
+            resume_state (dict): Resume state.
+        """
+        resume_optimizers = resume_state['optimizers']
+        resume_schedulers = resume_state['schedulers']
+        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
+        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
+        for i, o in enumerate(resume_optimizers):
+            self.optimizers[i].load_state_dict(o)
+        for i, s in enumerate(resume_schedulers):
+            self.schedulers[i].load_state_dict(s)
+
+        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
+        param_key = self.opt['path'].get('param_key', 'params')
+        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
+
+    def save(self, epoch, current_iter):
+        # save net and net_d
+        self.save_network(self.net, 'net', current_iter)
+        # save training state
+        self.save_training_state(epoch, current_iter)
+

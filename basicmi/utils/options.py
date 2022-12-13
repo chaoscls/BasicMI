@@ -6,7 +6,8 @@ import yaml
 from collections import OrderedDict
 from os import path as osp
 
-from basicmi.utils import set_random_seed
+from monai.utils import set_determinism
+
 from basicmi.utils.dist_util import get_dist_info, init_dist, master_only
 
 
@@ -129,7 +130,7 @@ def parse_options(root_path, is_train=True):
     if seed is None:
         seed = random.randint(1, 10000)
         opt['manual_seed'] = seed
-    set_random_seed(seed + opt['rank'])
+    set_determinism(seed + opt['rank'])
 
     # force to update yml options
     if args.force_yml is not None:

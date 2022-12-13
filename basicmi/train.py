@@ -6,6 +6,7 @@ from os import path as osp
 
 import torch
 from monai import data
+from monai.data import set_track_meta
 
 from basicmi.data import build_dataset
 from basicmi.data.data_sampler import EnlargedSampler
@@ -32,16 +33,19 @@ def create_train_val_dataloader(opt, logger):
         if phase == 'train':
             enlarge_ratio = dataset_opt.get('enlarge_ratio', 1)
             train_set = build_dataset(dataset_opt)
-            # train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], enlarge_ratio)
-            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], 1)
-            train_loader = data.DataLoader(
-                train_set,
-                batch_size=dataset_opt["batch_size_per_gpu"],
-                shuffle=(train_sampler is None),
-                num_workers=dataset_opt["workers"],
-                sampler=train_sampler,
-                pin_memory=dataset_opt["pin_memory"],
-            )
+            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], enlarge_ratio)
+            # train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], 1)
+            acc_step_num = opt['train'].get('acc_step_num', 1)
+            assert dataset_opt["batch_size_per_gpu"] % acc_step_num == 0, 'batch size must be divisible by accumulation step number'
+            train_loader = data.ThreadDataLoader(train_set, num_workers=0, batch_size=dataset_opt["batch_size_per_gpu"] // acc_step_num, shuffle=(train_sampler is None))
+            # train_loader = data.DataLoader(
+            #     train_set,
+            #     batch_size=dataset_opt["batch_size_per_gpu"],
+            #     shuffle=(train_sampler is None),
+            #     num_workers=dataset_opt["workers"],
+            #     sampler=train_sampler,
+            #     pin_memory=dataset_opt["pin_memory"],
+            # )
 
             num_iter_per_epoch = math.ceil(
                 len(train_set) * dataset_opt["enlarge_ratio"] / (dataset_opt['batch_size_per_gpu'] * opt['world_size']))
@@ -56,6 +60,7 @@ def create_train_val_dataloader(opt, logger):
                         f'\n\tTotal epochs: {total_epochs}; iters: {total_iters}.')
         elif phase.split('_')[0] == 'val':
             val_set = build_dataset(dataset_opt)
+            # val_loader = data.ThreadDataLoader(val_set, num_workers=0, batch_size=1, shuffle=False)
             val_loader = data.DataLoader(
                 val_set, 
                 batch_size=1, 
@@ -123,6 +128,8 @@ def train_pipeline(root_path):
     # initialize wandb and tb loggers
     tb_logger = init_tb_loggers(opt)
 
+    set_track_meta(True)
+
     # create train and validation dataloaders
     result = create_train_val_dataloader(opt, logger)
     train_loader, train_sampler, val_loaders, total_epochs, total_iters = result
@@ -137,6 +144,9 @@ def train_pipeline(root_path):
     else:
         start_epoch = 0
         current_iter = 0
+    current_step = 0
+
+    acc_step_num = opt['train'].get('acc_step_num', 1)
 
     # create message logger (formatted outputs)
     msg_logger = MessageLogger(opt, current_iter, tb_logger)
@@ -166,39 +176,48 @@ def train_pipeline(root_path):
         while train_data is not None:
             data_timer.record()
 
-            current_iter += 1
+            current_step += 1
+            current_iter += (current_step % acc_step_num == 0)
             if current_iter > total_iters:
                 break
-            # update learning rate
-            model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
-            # training
+            
             model.feed_data(train_data)
-            model.optimize_parameters(current_iter)
-            iter_timer.record()
-            if current_iter == 1:
-                # reset start time in msg_logger for more accurate eta_time
-                # not work in resume mode
-                msg_logger.reset_start_time()
-            # log
-            if current_iter % opt['logger']['print_freq'] == 0:
-                log_vars = {'epoch': epoch, 'iter': current_iter}
-                log_vars.update({'lrs': model.get_current_learning_rate()})
-                log_vars.update({'time': iter_timer.get_avg_time(), 'data_time': data_timer.get_avg_time()})
-                log_vars.update(model.get_current_log())
-                msg_logger(log_vars)
+            model.forward()
+            
+            if current_step % acc_step_num == 0:
+                # reduce loss log
+                model.reduce_log()
+                # update learning rate
+                model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
+                # training
+                model.optimize_parameters()
+                iter_timer.record()
+                if current_iter == 1:
+                    # reset start time in msg_logger for more accurate eta_time
+                    # not work in resume mode
+                    msg_logger.reset_start_time()
+                # log
+                if current_iter % opt['logger']['print_freq'] == 0:
+                    log_vars = {'epoch': epoch, 'iter': current_iter}
+                    log_vars.update({'lrs': model.get_current_learning_rate()})
+                    log_vars.update({'time': iter_timer.get_avg_time(), 'data_time': data_timer.get_avg_time()})
+                    log_vars.update(model.get_current_log())
+                    msg_logger(log_vars)
 
-            # save models and training states
-            if current_iter % opt['logger']['save_checkpoint_freq'] == 0:
-                logger.info('Saving models and training states.')
-                model.save(epoch, current_iter)
+                # save models and training states
+                if current_iter % opt['logger']['save_checkpoint_freq'] == 0:
+                    logger.info('Saving models and training states.')
+                    model.save(epoch, current_iter)
 
-            # validation
-            if opt.get('val') is not None and (current_iter % opt['val']['val_freq'] == 0):
-                for val_loader in val_loaders:
-                    model.validation(val_loader, current_iter, tb_logger, opt['val']['save_img'])
+                # validation
+                if opt.get('val') is not None and (current_iter % opt['val']['val_freq'] == 0):
+                    for val_loader in val_loaders:
+                        model.validation(val_loader, current_iter, tb_logger, opt['val']['save_img'])
+                model.clear_log()
+                
+                iter_timer.start()
 
             data_timer.start()
-            iter_timer.start()
             train_data = prefetcher.next()
         # end of iter
 

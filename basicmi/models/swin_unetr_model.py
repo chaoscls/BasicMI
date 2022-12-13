@@ -15,11 +15,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class SwinUNETRModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(SwinUNETRModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -35,9 +35,9 @@ class UNetModel(BaseModel):
 
         if self.is_train:
             self.init_training_settings()
-        
+
         self.init_val_settings()
-    
+
     def init_val_settings(self):
         dice_opt = self.opt['val']['metrics']['dice']
         self.dice_metric = build_metric(dice_opt)

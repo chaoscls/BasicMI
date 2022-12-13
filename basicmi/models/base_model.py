@@ -1,13 +1,15 @@
 import os
 import time
-import torch
 from collections import OrderedDict
 from copy import deepcopy
+
+import torch
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 from basicmi.models import lr_scheduler as lr_scheduler
 from basicmi.utils import get_root_logger
 from basicmi.utils.dist_util import master_only
+from basicmi.losses import build_loss
 
 
 class BaseModel():
@@ -17,17 +19,32 @@ class BaseModel():
         self.opt = opt
         self.device = torch.device('cuda' if opt['num_gpu'] != 0 else 'cpu')
         self.is_train = opt['is_train']
+        self.acc_step_num = opt['train'].get('acc_step_num', 1)
+        self.log_dict = {}
         self.schedulers = []
         self.optimizers = []
 
     def feed_data(self, data):
         pass
 
-    def optimize_parameters(self):
-        pass
+    def init_training_settings(self):
+        train_opt = self.opt['train']
+        self.net.train()
+        
+        # ----------- define losses ----------- #
+        self.criterions = [build_loss(loss_opt).to(self.device) for loss_opt in train_opt['losses_opt'].values()]
 
-    # def get_current_visuals(self):
-    #     pass
+        # set up optimizers and schedulers
+        self.setup_optimizers()
+        self.setup_schedulers()
+
+    def optimize_parameters(self):
+        if self.opt['amp']:
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def save(self, epoch, current_iter):
         """Save networks and training state."""
@@ -81,8 +98,19 @@ class BaseModel():
     #     for k in net_g_ema_params.keys():
     #         net_g_ema_params[k].data.mul_(decay).add_(net_g_params[k].data, alpha=1 - decay)
 
+    def clear_log(self):
+        self.log_dict.clear()
+
     def get_current_log(self):
         return self.log_dict
+    
+    def reduce_log(self):
+        for key in self.log_dict:
+            self.log_dict[key] /= self.acc_step_num
+
+    def update_log(self, log_dict):
+        for key, val in log_dict.items():
+            self.log_dict[key] = self.log_dict.get(key, 0) + val
 
     def model_to_device(self, net):
         """Model to device. It also warps models with DistributedDataParallel
@@ -123,12 +151,6 @@ class BaseModel():
         """Set up schedulers."""
         train_opt = self.opt['train']
         scheduler_type = train_opt['scheduler'].pop('type')
-        # if scheduler_type == 'warmup_cosine':
-        #     for optimizer in self.optimizers:
-        #         self.schedulers.append(lr_scheduler.LinearWarmupCosineAnnealingLR(optimizer, **train_opt['scheduler']))
-        # elif scheduler_type == 'cosine_anneal':
-        #     for optimizer in self.optimizers:
-        #         self.schedulers.append(torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, **train_opt['scheduler']))
         if scheduler_type in ['MultiStepLR', 'MultiStepRestartLR']:
             for optimizer in self.optimizers:
                 self.schedulers.append(lr_scheduler.MultiStepRestartLR(optimizer, **train_opt['scheduler']))
@@ -337,6 +359,8 @@ class BaseModel():
                 state['optimizers'].append(o.state_dict())
             for s in self.schedulers:
                 state['schedulers'].append(s.state_dict())
+            if self.opt['amp']:
+                state['scaler'] = self.scaler.state_dict()
             save_filename = f'{current_iter}.state'
             save_path = os.path.join(self.opt['path']['training_states'], save_filename)
 
@@ -358,7 +382,7 @@ class BaseModel():
                 # raise IOError(f'Cannot save {save_path}.')
 
     def resume_training(self, resume_state):
-        """Reload the optimizers and schedulers for resumed training.
+        """Reload the optimizers, schedulers and models for resumed training.
 
         Args:
             resume_state (dict): Resume state.
@@ -371,6 +395,12 @@ class BaseModel():
             self.optimizers[i].load_state_dict(o)
         for i, s in enumerate(resume_schedulers):
             self.schedulers[i].load_state_dict(s)
+        if self.opt['amp']:
+            self.scaler.load_state_dict(resume_state['scaler'])
+
+        load_path = os.path.join(self.opt['path']['models'], f'net_{resume_state["iter"]}.pth')
+        param_key = self.opt['path'].get('param_key', 'params')
+        self.load_network(self.net, load_path, self.opt['path'].get('strict_load', True), param_key)
 
     def reduce_loss_dict(self, loss_dict):
         """reduce loss dict.
@@ -399,3 +429,9 @@ class BaseModel():
 
             return log_dict
 
+    def save(self, epoch, current_iter):
+        # save net
+        self.save_network(self.net, 'net', current_iter)
+        # save training state
+        self.save_training_state(epoch, current_iter)
+        

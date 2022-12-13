@@ -8,10 +8,10 @@ from basicmi.utils.registry import DATASET_REGISTRY
 
 
 @DATASET_REGISTRY.register()
-class Artery18TrainDataset(torch.utils.data.Dataset):
+class RCSTrainDataset(torch.utils.data.Dataset):
 
     def __init__(self, opt):
-        super(Artery18TrainDataset, self).__init__()
+        super(RCSTrainDataset, self).__init__()
         self.opt = opt
         data_dir = self.opt["dataroot"]
         images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))
@@ -75,10 +75,10 @@ class Artery18TrainDataset(torch.utils.data.Dataset):
 
 
 @DATASET_REGISTRY.register()
-class Artery18ValidationDataset(torch.utils.data.Dataset):
+class RCSValidationDataset(torch.utils.data.Dataset):
 
     def __init__(self, opt):
-        super(Artery18ValidationDataset, self).__init__()
+        super(RCSValidationDataset, self).__init__()
         self.opt = opt
         data_dir = self.opt["dataroot"]
         images = sorted(glob.glob(os.path.join(data_dir, "images", "*.nii.gz")))

@@ -15,11 +15,11 @@ from basicmi.inferers.utils import sliding_window_inference
 
 
 @MODEL_REGISTRY.register()
-class UNetModel(BaseModel):
+class UNetRefineModel(BaseModel):
     """The GFPGAN model for Towards real-world blind face restoratin with generative facial prior"""
 
     def __init__(self, opt):
-        super(UNetModel, self).__init__(opt)
+        super(UNetRefineModel, self).__init__(opt)
         self.idx = 0  # it is used for saving data for check
 
         # define network
@@ -90,9 +90,12 @@ class UNetModel(BaseModel):
         loss_dict = OrderedDict()
         with autocast(enabled=self.opt['amp']):
             losses = {}
-            self.output = self.net(self.data)
+            outputs = self.net(self.data, return_mid=True)
+            for i, output in enumerate(outputs[:-1]):
+                for criterion in self.criterions:
+                    losses.update(criterion(output, self.target, return_dict=True, suffix=str(i+1)))
             for criterion in self.criterions:
-                losses.update(criterion(self.output, self.target, return_dict=True))
+                losses.update(criterion(outputs[-1], self.target, return_dict=True))
 
         for key, val in losses.items():
             loss_total += val

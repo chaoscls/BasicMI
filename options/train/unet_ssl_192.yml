@@ -1,6 +1,6 @@
 # general settings
-name: test
-model_type: DSUNETModel
+name: unet_ssl_192
+model_type: UNetModel
 num_gpu: auto
 manual_seed: 0
 
@@ -8,47 +8,54 @@ manual_seed: 0
 datasets:
   train:
     name: train
-    type: Artery18TrainDataset
-    dataroot: experiments/dataset/debug/train
+    type: Artery18SSLTrainDataset
+    dataroot: experiments/dataset/18artery/train
+    udataroot: experiments/dataset/LUNA16/st_192
     # transforms
     a_min: -1200.0
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space: [1.0, 1.0, 1.6]
-    spatial_size: [256, 256, 192]
-    # CropForegroundd
-    source_key: label
-    margin: 10
+    space_x: 1.5
+    space_y: 1.5
+    space_z: 2.0
+    roi_x: 192
+    roi_y: 192
+    roi_z: 96
     RandFlipd_prob: 0.2
-    num_samples: 1
+    RandRotate90d_prob: 0.2
     # RandRotate
     rotate_prob: 0.3
     rotate_range: 0.785
+    # Rand3DElasticd
+    elastic_prob: 0.5
+    shear_range: [0.2,0.2,0.2,0.2,0.2,0.2]
+    # Intensity
+    RandScaleIntensityd_prob: 0.5
+    RandShiftIntensityd_prob: 0.5
     # other
     enlarge_ratio: 1
-    dataset_type: cache
+    dataset_type: smart
     cache_rate: 1.0  # if use cache dataset
     # data loader
     use_shuffle: true
-    workers: 0
-    batch_size_per_gpu: 2
+    workers: 16
+    batch_size_per_gpu: 4
     pin_memory: true
     prefetch_mode: cuda
 
   val:
     name: validation
     type: Artery18ValidationDataset
-    dataroot: experiments/dataset/debug/val
+    dataroot: experiments/dataset/18artery/val
     # transforms
     a_min: -1200.0
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space: [1.0, 1.0, 1.6]
-    # CropForegroundd
-    source_key: label
-    margin: 10
+    space_x: 1.5
+    space_y: 1.5
+    space_z: 2.0
     # other
     valid_num: ~
     dataset_type: cache
@@ -60,16 +67,15 @@ datasets:
   val_train:
     name: validation(train)
     type: Artery18ValidationDataset
-    dataroot: experiments/dataset/debug/train
+    dataroot: experiments/dataset/18artery/train
     # transforms
     a_min: -1200.0
     a_max: 400.0
     b_min: 0.0
     b_max: 1.0
-    space: [1.0, 1.0, 1.6]
-    # CropForegroundd
-    source_key: label
-    margin: 10
+    space_x: 1.5
+    space_y: 1.5
+    space_z: 2.0
     # other
     valid_num: ~
     dataset_type: cache
@@ -81,7 +87,7 @@ datasets:
 
 # network structures
 network:
-  type: DSUNet
+  type: UNet
   spatial_dims: 3
   in_channels: 1
   out_channels: 19
@@ -104,49 +110,42 @@ train:
   optim:
     type: Adam
     lr: !!float 1e-3
-    weight_decay: !!float 1e-5
+    weight_decay: !!float 1e-3
+    # weight_decay: 0
 
   scheduler:
-    type: MultiStepLR 
-    milestones: [20, 40, 60, 80]
-    gamma: 0.5
-    
-    # type: CosineAnnealingRestartLR 
-    # periods: [10, 10, 10, 10]
-    # restart_weights: [1.0, 0.5, 0.5, 0.5]
+    # type: MultiStepLR 
+    # milestones: [4000, 8000, 12000, 16000]
+    # gamma: 0.5
 
-  # total_iter: 40000
-  # warmup_iter: 200
+    type: CosineAnnealingRestartLR 
+    periods: [30000, 30000]
+    restart_weights: [1.0, 0.5]
+    eta_min: !!float 1e-8
 
-  total_iter: 100
-  warmup_iter: 10
-  acc_step_num: 1
+  total_iter: 60000
+  warmup_iter: 1000
 
   # losses
-  losses_opt:
-    # dice loss
-    dice_opt:
-      type: DiceLoss
-      include_background: true
-      to_onehot_y: true
-      softmax: true
-      loss_weight: !!float 1
-      reduction: mean
+  # dice loss
+  dice_opt:
+    type: DiceLoss
+    include_background: true
+    to_onehot_y: true
+    softmax: true
+    loss_weight: !!float 1
+    reduction: mean
 
 # validation settings
 val:
-  val_freq: !!float 5
+  val_freq: !!float 100
   save_img: false
   pbar: true
 
   model_inferer:
     sw_batch_size: 4
-    infer_overlap: 0.2
-<<<<<<< HEAD
-    roi_size: [160, 160, 96]
-=======
-    roi_size: [256, 256, 192]
->>>>>>> dev
+    infer_overlap: 0.4
+    roi_size: [192, 192, 96]
 
   metrics:
     dice: # metric name
@@ -158,7 +157,7 @@ val:
 
 # logging settings
 logger:
-  print_freq: 1
+  print_freq: 20
   save_checkpoint_freq: !!float 500
   use_tb_logger: true
 
